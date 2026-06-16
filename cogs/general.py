@@ -235,7 +235,7 @@ class General(commands.Cog):
 
         embed=build_simple_embed(
             title="선택",
-            description=f"{len_emoji[len(topics)]} {len(topics)}개 중에 하나는?"
+            description=f"{len_emoji[len(topics)]}  {len(topics)}개 중에 하나는?"
         )
         embed.add_field(name="결과", value=topic)
         await interaction.followup.send(embed=embed, ephemeral=True)
