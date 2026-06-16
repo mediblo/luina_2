@@ -3,14 +3,36 @@ from discord.ext import commands
 from discord import app_commands
 
 from collections import deque
+from typing import Optional
 import time
 import random
+import asyncio
 
 from utils.embed_builder import build_simple_embed
 
 class General(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+
+    @app_commands.command(name="정보", description="루이나에 대한 정보를 알려줍니다") # 정보 260616
+    async def info(self, interaction: discord.Interaction):
+        embed = build_simple_embed(
+            title="정보",
+            description="ℹ️ Luina V2.0"
+        )
+        #embed.set_thumbnail()
+
+        embed.add_field(name= "개발자", value= "mediblo", inline=False)
+        embed.add_field(name= "탄생일", value= "2020년 7월 26일")
+        embed.add_field(name= "V2.0", value= "2026년 6월 15일", inline=False)
+        embed.add_field(name= "제작자 이메일", value= "jjssog@naver.com\n-# 이메일은 자주 확인을 하지 않습니다.", inline=False)
+        embed.add_field(name= "프로필 사진 출처", value= "None", inline=False)
+        embed.add_field(name= "블로그 URL", value= "https://blog.naver.com/jjssog")
+        embed.add_field(name= "Velog URL", value= "https://velog.io/@mediblo/posts")
+        embed.set_footer(text= "오류나 건의사항은 제보해주시기 바랍니다")
+        await interaction.response.send_message(embed= embed, ephemeral= True)
+
+#########################################################################################################
 
     @app_commands.command(name="핑", description="퐁!") # 핑 - 퐁 260616
     async def ping(self, interaction: discord.Interaction):
@@ -37,7 +59,9 @@ class General(commands.Cog):
         )
         
         # 임시로 보냈던 메시지를 Embed 메시지로 수정(Edit)합니다.
-        await interaction.edit_original_response(content=None, embed=embed)
+        await interaction.edit_original_response(content=None, embed=embed, ephemeral=True)
+
+#########################################################################################################
 
     @app_commands.command(name="계산기", description="일련의 식을 계산합니다.") # 계산기 260616
     @app_commands.describe(msg="일련의 식을 입력합니다 (2+4*4)")
@@ -117,7 +141,9 @@ class General(commands.Cog):
         embed_result.add_field(name = "계산된 값", value = f"{calc[0]:.2f}")
 
         # 2. send_message의 embed 인자에 전달
-        await interaction.response.send_message(embed=embed_result)
+        await interaction.response.send_message(embed=embed_result, ephemeral=True)
+
+#########################################################################################################
         
     @app_commands.command(name="시간", description="현재 시간 및 UTC 시간을 알려줍니다") # 시간 260616
     async def clock(self, interaction: discord.Interaction):
@@ -137,9 +163,11 @@ class General(commands.Cog):
         embed_result.add_field(name="UTC 기준", value= f"{utc:02d}:{min:02d}:{sec:02d}", inline= False)
         embed_result.add_field(name="UTC 기준", value= f"{hour:02d}:{min:02d}:{sec:02d}", inline= False)
 
-        await interaction.response.send_message(embed=embed_result)
+        await interaction.response.send_message(embed=embed_result, ephemeral=True)
 
-    @app_commands.command(name="가위바위보", description="루이나와 가위바위보를 합니다.") #가위바위보 260616
+#########################################################################################################
+
+    @app_commands.command(name="가위바위보", description="루이나와 가위바위보를 합니다.") # 가위바위보 260616
     @app_commands.choices(
         player=[
             app_commands.Choice(name="✌️ 가위", value="scissors"),
@@ -168,6 +196,53 @@ class General(commands.Cog):
                 embed_result.add_field(name="짐!",value=f"Luina가 낸 것 : {computer}", inline=False)
         
         await interaction.response.send_message(embed=embed_result, ephemeral=True)
+
+#########################################################################################################
+
+    @app_commands.command(name="소라고동", description="소라고동님이 정답을 알려줍니다.") # 소라고동 201102 / 260616
+    @app_commands.describe(msg="무엇을 물어볼까요?")
+    async def conch_shell(self, interaction: discord.Interaction, msg: str):
+        if msg == None:
+            await 도움말(ctx, '소라고동')
+            return
+        await interaction.response.defer(ephemeral=False)
+        await asyncio.sleep(3)
+
+        embed=build_simple_embed(
+            title="소라고동",
+            description="🐚 소라고동님의 말씀"
+        )
+        embed.add_field(name=msg, value="그래" if random.randint(0, 1) else "안돼")
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+#########################################################################################################
+
+    @app_commands.command(name="선택", description="최대 10개 중 한 개를 골라줍니다.") # 소라고동 ??? / 240313 / 260616
+    @app_commands.describe(tp1 ="최소 2개정도는 입력해야 합니다")
+    @app_commands.describe(tp2 ="최소 2개정도는 입력해야 합니다")
+    async def choice(self, interaction: discord.Interaction,
+                     tp1: str, tp2: str, tp3: Optional[str] = None,
+                    tp4: Optional[str] = None, tp5: Optional[str] = None, tp6: Optional[str] = None,
+                    tp7: Optional[str] = None, tp8: Optional[str] = None, tp9: Optional[str] = None, tp10: Optional[str] = None):
+        
+        await interaction.response.defer(ephemeral=False)
+        await asyncio.sleep(1.5)
+
+        topics = [val for key, val in locals().items() if "tp" in key and val is not None]
+        topic = random.choice(topics)
+        len_emoji = {2 : "2️⃣", 3 : "3️⃣", 4 : "4️⃣", 5 : "5️⃣", 6 : "6️⃣",
+                     7 : "7️⃣", 8 : "8️⃣", 9 : "9️⃣", 10 : "0️⃣",}
+
+        embed=build_simple_embed(
+            title="선택",
+            description=f"{len_emoji[len(topics)]} {len(topics)}개 중에 하나는?"
+        )
+        embed.add_field(name="결과", value=topic)
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+#########################################################################################################
+
+
 
 async def setup(bot):
     await bot.add_cog(General(bot))
