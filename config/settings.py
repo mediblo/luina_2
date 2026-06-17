@@ -8,7 +8,7 @@ TEST_GUILD_ID = 736512667530821653 # 테스트 서버 ID
 # win_api=str(os.getenv('win_api')) # 윈섭 API
 # client_id = str(os.getenv('naver_cli_id')) # 네이버 클라 id
 # client_secret = str(os.getenv('naver_cli_secret')) # 네이버 클라 시크릿
-# weather_api = str(os.getenv('openweather_api')) # openweather map API
+# openweathermap_api = str(os.getenv('openweather_api')) # openweather map API
 # exchangerate_api = str(os.getenv('exchange_api')) # excgangerate API
 # korea_api = str(os.getenv('korea_api')) # 공공데이터포탈 api
 # lostark_api = str(os.getenv('lostark_api')) # 로스트아크 api
@@ -18,6 +18,7 @@ TEST_GUILD_ID = 736512667530821653 # 테스트 서버 ID
 #     'authorization' : lostark_api
 # }
 
-openweathermap_api = 'ad682d3ccaf8a6c9c516073e7ef2f4fd' # 오픈웨더맵 임시 api
+openweathermap_api = 'ad682d3ccaf8a6c9c516073e7ef2f4fd' # OpenWeathermap 임시 api
+exchangerate_api = 'cb2c19f8d2b03b7dc9dde010' # ExchangeRate 임시 api
 
 ## TODO : api 작동 확인 코드
