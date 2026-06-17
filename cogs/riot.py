@@ -26,6 +26,7 @@ class RiotCog(commands.Cog):
         ] 
     )
     async def match_log(self, interaction: discord.interactions, nickname:str, mode:int = -1):
+        await interaction.response.defer(ephemeral=True)
         nickname = nickname.split('#')
         QUEUE_DATA = {
             400 : "일반",
@@ -69,7 +70,7 @@ class RiotCog(commands.Cog):
             
             game_ver_url = "https://ddragon.leagueoflegends.com/api/versions.json"
             game_ver = await get_json(game_ver_url)
-            champion = {api_data['info']['participants'][match_player_num]['championName']}
+            champion = api_data['info']['participants'][match_player_num]['championName']
             champion_name_url = f"https://ddragon.leagueoflegends.com/cdn/{game_ver[0]}/data/ko_KR/champion/{champion}.json"
             champion_name = await get_json(champion_name_url)
 
@@ -89,8 +90,8 @@ class RiotCog(commands.Cog):
         total_games = len(match_data)
 
         embed = build_simple_embed(
-            title="리그 오브 레전드 최근 전적",
-            description=name
+            title= name,
+            description=None
         )
 
         for match in match_data:
@@ -125,13 +126,13 @@ class RiotCog(commands.Cog):
                 f"**KDA:** {k} / {d} / {a}  *(평점: {kda_ratio})*"
             )
 
-        embed.add_field(name=field_name, value=field_value, inline=False)
+            embed.add_field(name=field_name, value=field_value, inline=False)
         
         # 종합 승률 계산 후 임베드 설명(description)에 상단 고정
         win_rate = int((wins / total_games) * 100)
         embed.description = f"**최근 {total_games}전 {wins}승 {total_games - wins}패 (승률 {win_rate}%)**\n" + ("-" * 30) if len(match_data) else "최근 플레이한 전적이 없습니다."
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(RiotCog(bot))
