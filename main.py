@@ -8,7 +8,7 @@ intents = discord.Intents.all() # 모든 권한
 
 class Luina(commands.Bot):
     def __init__(self):
-        super().__init__(command_prefix='!', intents=intents) # 명령어 접두사 설정, 권한 설정
+        super().__init__(command_prefix='!', intents=intents, description="Test Luina") # 명령어 접두사 설정, 권한 설정
 
     async def on_ready(self):
         print(f"로그인 완료: {self.user} (id={self.user.id})")

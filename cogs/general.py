@@ -1,12 +1,12 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-
 from collections import deque
 from typing import Optional
 import time
 import random
 import asyncio
+import base64
 
 from utils.embed_builder import build_simple_embed
 
@@ -201,10 +201,7 @@ class General(commands.Cog):
 
     @app_commands.command(name="소라고동", description="소라고동님이 정답을 알려줍니다.") # 소라고동 201102 / 260616
     @app_commands.describe(msg="무엇을 물어볼까요?")
-    async def conch_shell(self, interaction: discord.Interaction, msg: str):
-        if msg == None:
-            await 도움말(ctx, '소라고동')
-            return
+    async def conch_shell(self, interaction: discord.Interaction, msg: str):    
         await interaction.response.defer(ephemeral=False)
         await asyncio.sleep(3)
 
@@ -217,7 +214,7 @@ class General(commands.Cog):
 
 #########################################################################################################
 
-    @app_commands.command(name="선택", description="최대 10개 중 한 개를 골라줍니다.") # 소라고동 ??? / 240313 / 260616
+    @app_commands.command(name="선택", description="최대 10개 중 한 개를 골라줍니다.") # 선택 ??? / 240313 / 260616
     @app_commands.describe(tp1 ="최소 2개정도는 입력해야 합니다")
     @app_commands.describe(tp2 ="최소 2개정도는 입력해야 합니다")
     async def choice(self, interaction: discord.Interaction,
@@ -242,7 +239,28 @@ class General(commands.Cog):
 
 #########################################################################################################
 
+    @app_commands.command(name="b64", description="b64로 문장을 인코딩/디코딩 합니다") # b64 220926 / 260617
+    @app_commands.choices(
+        mode=[
+            app_commands.Choice(name="디코딩", value="Decode"),
+            app_commands.Choice(name="인코딩", value="Incode")
+        ]
+    )
+    @app_commands.describe(msg ="문장 입력")
+    async def b64(self, interaction: discord.Interaction, mode: app_commands.Choice[str], msg:str):
+        if mode == "Incode":
+            data_1=msg.encode('ascii')
+            data_2=base64.b64encode(data_1)
+            p_data=data_2.decode('ascii')
+        elif mode == "Decode":
+            data_1=base64.b64decode(msg)
+            p_data=data_1.decode('ascii')
 
+        embed=build_simple_embed(
+                    title="B64",
+                    description=mode
+                )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(General(bot))
