@@ -20,5 +20,6 @@ TEST_GUILD_ID = 736512667530821653 # 테스트 서버 ID
 
 openweathermap_api = 'ad682d3ccaf8a6c9c516073e7ef2f4fd' # OpenWeathermap 임시 api
 exchangerate_api = 'cb2c19f8d2b03b7dc9dde010' # ExchangeRate 임시 api
+riot_api = 'RGAPI-7d868dda-1909-4661-b1a8-e00cac109a52'
 
 ## TODO : api 작동 확인 코드
