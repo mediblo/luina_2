@@ -59,7 +59,7 @@ class General(commands.Cog):
         )
         
         # 임시로 보냈던 메시지를 Embed 메시지로 수정(Edit)합니다.
-        await interaction.edit_original_response(content=None, embed=embed, ephemeral=True)
+        await interaction.edit_original_response(content=None, embed=embed)
 
 #########################################################################################################
 

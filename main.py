@@ -26,7 +26,6 @@ class Luina(commands.Bot):
         print(f"동기화된 커맨드 수: {len(synced)}")
         print(f"동기화된 커맨드 목록: {[cmd.name for cmd in synced]}")
         # await self.tree.sync()
-        print("슬래시 커맨드 트리가 동기화되었습니다.")
 
 bot = Luina()
 
