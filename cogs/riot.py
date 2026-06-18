@@ -153,7 +153,6 @@ class RiotCog(commands.Cog):
         
         # title 리그 오브 레전드 전적
         # author = 닉네임(opgg url), icon
-        # 챔피언 와꾸 커스텀 이모지로 만들기 스발;
 
 
 async def setup(bot):

@@ -262,5 +262,58 @@ class General(commands.Cog):
                 )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
+#########################################################################################################
+
+        @app_commands.command(name="사전", description="단어에 대한 사전적 용어를 알려줍니다") # 사전 201105 / 260618
+        @app_commands.describe(word="단어 입력")
+        async def weather(self, interaction: discord.interactions, word:str):
+            api_url=f'https://kli.korean.go.kr/term/api/search.do?key={on_word_api}&apiSearchWord={word}&sort=wt&start=1&num=5'
+            api_data = await get_json(api_url)
+
+            if api_data['channel'].get('returnCode') == "1":
+                await interaction.response.send_message(api_data['channel']['return_object'], ephemeral=True)
+                return
+
+            word_data = {}
+
+            data = api_data['channel']['return_object'][0]['resultlist'][0]
+            word_data['word'] = data['word']
+            word_data['description'] = data['definition']
+            word_data['category'] = f"{data['category_main']} > {data['category_sub']}"
+            word_data['origin'] = f"{data['origin_cc']}"
+            word_data['use_ex'] = data["use_ex"].replace("<strong>", "**").replace("</strong>", "**")
+            word_data['source'] = f"{data['glossary']} {data['source']}"
+
+            embed = build_simple_embed(
+                title="사전",
+                description="📚  국립국어원 정보"
+            )
+
+            embed.add_field(
+                name=f"📖 {word_data['word']} {word_data['origin']}",
+                value = word_data['description'],
+                inline=False
+            )
+
+            # 4. 필드 추가 (분류 및 출처)
+            embed.add_field(
+                name="📂 분류",
+                value=word_data['category'],
+                inline=True,
+            )
+            embed.add_field(
+                name="📍 출처",
+                value=word_data['source'],
+                inline=True,
+            )
+
+            if data['use_ex']:
+                embed.add_field(name="📝 예문", value=word_data['use_ex'], inline=False)
+
+            embed.set_footer(text=f"{api_data['channel']['title']} 제공")
+
+            # 메시지 전송
+            await interaction.response.send_message(embed=embed, ephemeral = True)
+
 async def setup(bot):
     await bot.add_cog(General(bot))
