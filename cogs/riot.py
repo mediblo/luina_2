@@ -314,7 +314,7 @@ class RiotCog(commands.Cog):
             title= champion,
             description="상세 능력치 및 스킬입니다."
         )
-        champion_url = f"https://lol.ps/champ/{champion_key}"
+        champion_url = f"https://op.gg/ko/lol/champions/{champion_id}/build"
         embed.url = champion_url
 
         thumbnail_url = f"https://ddragon.leagueoflegends.com/cdn/{game_ver}/img/champion/{champion_id}.png"
@@ -365,7 +365,7 @@ class RiotCog(commands.Cog):
         enemy_tips_text = "\n".join([f"- {tip}" for tip in champion_data['data'][champion_id]['enemytips']])
         embed.add_field(name="🔴 상대할 때 (Enemy Tips)", value=f"{enemy_tips_text}", inline=False)
 
-        embed.set_footer(text=f"lol.ps로 이동  •  Riot Games 제공")
+        embed.set_footer(text=f"OP.GG로 이동  •  Riot Games 제공")
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
 

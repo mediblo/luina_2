@@ -1,8 +1,7 @@
-import asyncio, discord # 비동기함수, 디스코드
-from discord.ext import commands, tasks
+import discord # 디스코드
+from discord.ext import commands
 import os # 파일
 from config.settings import BOT_TOKEN, TEST_GUILD_ID # 설정값
-from cogs.general import General # 일반 명령어
 from datetime import datetime # 시간
 
 intents = discord.Intents.all() # 모든 권한
