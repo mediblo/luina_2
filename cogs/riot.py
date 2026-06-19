@@ -355,7 +355,7 @@ class RiotCog(commands.Cog):
                 inline=False
             )
 
-        embed.add_field(name="", value=f"**{'\*'*40}**", inline=False)
+        embed.add_field(name="", value=f"**{'\\*'*40}**", inline=False)
     
         # 아군 팁 줄바꿈 처리하여 문자열로 합성
         ally_tips_text = "\n".join([f"- {tip}" for tip in champion_data['data'][champion_id]['allytips']])

@@ -3,6 +3,7 @@ from discord.ext import commands, tasks
 import os # 파일
 from config.settings import BOT_TOKEN, TEST_GUILD_ID # 설정값
 from cogs.general import General # 일반 명령어
+from datetime import datetime # 시간
 
 intents = discord.Intents.all() # 모든 권한
 
@@ -11,7 +12,7 @@ class Luina(commands.Bot):
         super().__init__(command_prefix='!', intents=intents, description="Test Luina") # 명령어 접두사 설정, 권한 설정
 
     async def on_ready(self):
-        print(f"로그인 완료: {self.user} (id={self.user.id})")
+        print(f"로그인 완료: {self.user} ({datetime.now()})")
 
     async def setup_hook(self):
         for filename in os.listdir('./cogs'): # cogs 폴더의 모든 파일을 불러옴
@@ -22,7 +23,6 @@ class Luina(commands.Bot):
         guild_obj = discord.Object(id=TEST_GUILD_ID)
         self.tree.copy_global_to(guild=guild_obj)
         synced = await self.tree.sync(guild=guild_obj)
-        print(f"슬래시 동기화 대상 길드: {TEST_GUILD_ID}")
         print(f"동기화된 커맨드 수: {len(synced)}")
         print(f"동기화된 커맨드 목록: {[cmd.name for cmd in synced]}")
         # await self.tree.sync()
