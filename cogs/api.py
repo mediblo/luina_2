@@ -18,7 +18,7 @@ class ApiCog(commands.Cog):
         location = {}
         for x in api_data:
             if x['country'] == 'KR':
-                api_url = f'https://api.openweathermap.org/data/2.5/weather?lat={x['lat']}&lon={x['lon']}&appid={openweathermap_api}' # 날씨 정보 ( current weather data )
+                api_url = f"https://api.openweathermap.org/data/2.5/weather?lat={x['lat']}&lon={x['lon']}&appid={openweathermap_api}" # 날씨 정보 ( current weather data )
                 weather_data = await get_json(api_url)
 
                 location['city'] = f"{city}" # 지역

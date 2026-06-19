@@ -270,7 +270,7 @@ class RiotCog(commands.Cog):
 
     @app_commands.command(name="롤챔프", description="해당 챔피언의 정보를 확인합니다.") # 롤 챔피언 210105 / 240313 / 260619
     @app_commands.describe(champion="챔피언 이름")
-    async def lol_info(self, interaction: discord.interactions, champion:str):
+    async def cham_info(self, interaction: discord.interactions, champion:str):
         CHAM_ABBR_MAP = {
             '갱플' : '갱플랭크', '그가' : '그라가스', '그브' : '그레이브즈',
             '노틸' : '노틸러스', '누누' : '누누와 윌럼프', '다리' : '다리우스',
@@ -355,7 +355,8 @@ class RiotCog(commands.Cog):
                 inline=False
             )
 
-        embed.add_field(name="", value=f"**{'\\*'*40}**", inline=False)
+        separator = "\\*" * 40
+        embed.add_field(name="", value=f"**{separator}**", inline=False)
     
         # 아군 팁 줄바꿈 처리하여 문자열로 합성
         ally_tips_text = "\n".join([f"- {tip}" for tip in champion_data['data'][champion_id]['allytips']])
