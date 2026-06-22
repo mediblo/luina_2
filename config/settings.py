@@ -1,6 +1,6 @@
 import os
 
-BOT_TOKEN = "Nzk0MTEyNDYxNzQxMzU5MTI0.GX35Uy.h25plJGRpZBVDiQqF_GCH2afBG1scscCaKApqM" # 봇 토큰
+BOT_TOKEN = "Nzk0MTEyNDYxNzQxMzU5MTI0.GX35Uy.h25plJGRpZBVDiQqF_GCH2afBG1scscCaKApqM" # 봇 토큰 ( 임시 )
 TEST_GUILD_ID = 736512667530821653 # 테스트 서버 ID
 
 # BOT_TOKEN = str(os.getenv('bot_token'))
@@ -20,7 +20,7 @@ TEST_GUILD_ID = 736512667530821653 # 테스트 서버 ID
 
 openweathermap_api = 'ad682d3ccaf8a6c9c516073e7ef2f4fd' # OpenWeathermap 임시 api
 exchangerate_api = 'cb2c19f8d2b03b7dc9dde010' # ExchangeRate 임시 api
-riot_api = 'RGAPI-f39d09cf-b45e-4661-a9cb-85b0409fdaba' # riot_api 임시 api [ 24H ]
-on_word_api = '731hADyp-55QI-PUmX-eDoS-Cw1jWvlq' # 온용어 api [ 280618 까지 ]
+riot_api = 'RGAPI-34c3764f-27a3-44c4-9a43-d3836d6f8dfc' # riot_api 임시 api [ 24H ]
+on_word_api = '731hADyp-55QI-PUmX-eDoS-Cw1jWvlq' # 온용어 api [ 임시 ]
 
 ## TODO : api 작동 확인 코드

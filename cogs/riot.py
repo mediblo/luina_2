@@ -1,6 +1,7 @@
-import discord
+import discord, asyncio
 from discord.ext import commands
 from discord import app_commands
+from typing import Optional
 
 from utils.http_client import get_json
 
@@ -11,9 +12,39 @@ class RiotCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.riot_emoji = []
+        self.CHAM_ABBR_MAP = {
+            '갱플' : '갱플랭크', '그가' : '그라가스', '그브' : '그레이브즈',
+            '노틸' : '노틸러스', '누누' : '누누와 윌럼프', '다리' : '다리우스',
+            '드븐' : '드레이븐', '레나타' : '레나타 글라스크', '레넥' : '레넥톤',
+            '리산' : '리산드라', '마이' : '마스터 이', '마오' : '마오카이',
+            '말파' : '말파이트', '모데' : '모데카이저', '몰가' : '모르가나',
+            '문도' : '문도 박사', '미포' : '미스 포츈', '볼베' : '볼리베어',
+            '브라' : '브라이어', '블라디' : '블라디미르', '블미' : '블라디미르',
+            '블츠' : '블리츠크랭크', '블랭' : '블리츠크랭크', '사일' : '사일러스',
+            '세주' : '세주아니', '신짜오' : '신 짜오', '리신' : '리 신',
+            '쓸쉬' : '쓰레쉬', '아우솔' : '아우렐리온 솔', '아트' : '아트록스',
+            '아펠' : '아펠리오스', '알리' : '알리스타', '야소' : '야스오',
+            '오리' : '오리아나', '이렐' : '이렐리아', '이즈' : '이즈리얼',
+            '일라' : '일라오이', '자르반' : '자르반 4세', '카시' : '카시오페아',
+            '카타' : '카타리나', '칼리' : '칼리스타', '케틀' : '케이틀린',
+            '킨드' : '킨드레드', '탐켄치' : '탐 켄치', '켄치' : '탐 켄치',
+            '트타' : '트리스타나', '트리' : '트리스타나', '트린' : '트린다미어',
+            '트페' : '트위스티드 페이트', '트위스티드페이트' : '트위스티드 페이트',
+            '피들' : '피들스틱', '하딩' : '하이머딩거' }
 
     async def cog_load(self):
         self.riot_emoji = await self.bot.fetch_application_emojis()
+
+#########################################################################################################
+
+    async def _fetch_match_data(self, match_id, riot_api):
+        api_url = f"https://asia.api.riotgames.com/lol/match/v5/matches/{match_id}?api_key={riot_api}"
+        try:
+            return await get_json(api_url)
+        except Exception as e:
+            # 개별 요청 실패 시 에러 로깅 후 None 반환 (전체 gather가 터지는 것을 방지)
+            print(f"Match {match_id} fetch error: {e}")
+            return None
 
     @app_commands.command(name="전적", description="해당 유저의 최근 10판을 확인합니다.") # 전적 201212 / 220808 / 260618
     @app_commands.describe(nickname="태그 포함")
@@ -52,6 +83,11 @@ class RiotCog(commands.Cog):
             'FiddleSticks' : 'Fiddlesticks'
         }
         
+        # 닉네임 형식 예외 처리 (태그 누락 방지)
+        if len(nickname) < 2:
+            await interaction.followup.send(content="닉네임에 태그(#)를 포함해 주세요. (예: 닉네임#KR1)", ephemeral=True)
+            return
+        
         api_url=f"https://asia.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{nickname[0]}/{nickname[1]}?api_key={riot_api}" # puuid 구하기 [account-v1]
         api_data = await get_json(api_url)
 
@@ -61,6 +97,7 @@ class RiotCog(commands.Cog):
 
         puuid = api_data['puuid']
         name = f"{api_data['gameName']}#{api_data['tagLine']}"
+
         api_url = f"https://kr.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}?api_key={riot_api}"
         api_data = await get_json(api_url)
         profile_icon = api_data['profileIconId']
@@ -68,47 +105,63 @@ class RiotCog(commands.Cog):
         api_url=f"https://asia.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?start=0&count=20&api_key={riot_api}" # 매치id 구하기 [match-v5]
         matchs = await get_json(api_url)
 
-        match_data=[]
+        if not matchs:
+            await interaction.followup.send("최근 플레이한 전적이 없습니다.", ephemeral=True)
+            return
+
+        tasks = [self._fetch_match_data(match_id, riot_api) for match_id in matchs] # 병렬 매치 불러오기
+        all_match_responses = await asyncio.gather(*tasks, return_exceptions=True)
+
+        match_data = []
         wins = 0
 
-        for match_id in matchs:
-            m_data = {}
-            api_url=f"https://asia.api.riotgames.com/lol/match/v5/matches/{match_id}?api_key={riot_api}" # 매치 정보 구하기 [match-v5]
-            api_data = await get_json(api_url)
+        # 병렬로 받아온 결과들을 순차 처리 및 데이터 가공
+        for api_data in all_match_responses:
+            # 예외 객체거나, 데이터를 받지 못했거나, 올바르지 않은 응답 패스
+            if isinstance(api_data, Exception) or not api_data or 'info' not in api_data:
+                continue
 
-            if api_data['info']['endOfGameResult'] == 'Abort_Unexpected': # 예기치 않은 중단 [ 아마 다시하기 인듯 ]
+            # 예기치 않은 중단 [ 다시하기 등 ] 패스
+            if api_data['info'].get('endOfGameResult') == 'Abort_Unexpected':
                 continue
             
-            match_player_num = api_data['metadata']['participants'].index(puuid) # 플레이어 번호 [ 메타데이터 ]
+            # 특정 모드 선택 시 매칭 검사
+            queue_id = api_data['info']['queueId']
+            if mode != -1 and queue_id != mode:
+                continue
+
+            try:
+                # 플레이어 인덱스 번호 찾기
+                match_player_num = api_data['metadata']['participants'].index(puuid)
+            except (ValueError, KeyError):
+                continue
             
-            game_ver_url = "https://ddragon.leagueoflegends.com/api/versions.json"
-            game_ver = await get_json(game_ver_url)
-            champion = api_data['info']['participants'][match_player_num]['championName']
+            player_info = api_data['info']['participants'][match_player_num]
+            
+            champion = player_info['championName']
             if champion in CHAMPION_RENAME:
                 champion = CHAMPION_RENAME[champion]
-            champion_name_url = f"https://ddragon.leagueoflegends.com/cdn/{game_ver[0]}/data/ko_KR/champion/{champion}.json"
-            champion_name = await get_json(champion_name_url)
 
-            queue_id = api_data['info']['queueId']
-
-            if mode != -1 and queue_id != mode: # 모드 선택 시 해당 모드만
-                continue
-
-            m_data['queueId'] = queue_id # 게임 모드
-            m_data['win'] = api_data['info']['participants'][match_player_num]['win'] # 승패 여부
-            # m_data['champion'] = champion_name['data'][champion]['name'] # 챔피언 이름
-            m_data['champion'] = discord.utils.get(self.riot_emoji, name=champion) # 챔피언 emoji
-            m_data['kill'] = api_data['info']['participants'][match_player_num]['kills'] # 킬
-            m_data['death'] = api_data['info']['participants'][match_player_num]['deaths'] # 뎃
-            m_data['assist'] = api_data['info']['participants'][match_player_num]['assists'] # 어시
-            m_data['position'] = api_data['info']['participants'][match_player_num]['teamPosition'] # 포지션 [ 아레나, 칼바람은? ]
+            m_data = {
+                'queueId': queue_id,
+                'win': player_info['win'],
+                'champion': discord.utils.get(self.riot_emoji, name=champion),
+                'kill': player_info['kills'],
+                'death': player_info['deaths'],
+                'assist': player_info['assists'],
+                'position': player_info['teamPosition']
+            }
             
             match_data.append(m_data)
+            
+            # 최종 정제된 유효 데이터가 10개가 쌓이면 즉시 중단
             if len(match_data) == 10:
                 break
 
-        
         total_games = len(match_data)
+        if total_games == 0:
+            await interaction.followup.send("조건에 맞는 최근 전적이 없습니다.", ephemeral=True)
+            return
 
         embed = build_simple_embed(
             title= "리그 오브 레전드 전적",
@@ -268,30 +321,11 @@ class RiotCog(commands.Cog):
         embed.set_footer(text=f"OP.GG로 이동  •  Riot Games 제공")
         await interaction.followup.send(embed=embed, ephemeral=True)
 
-    @app_commands.command(name="롤챔프", description="해당 챔피언의 정보를 확인합니다.") # 롤 챔피언 210105 / 240313 / 260619
+    @app_commands.command(name="롤챔프", description="해당 챔피언의 스킬 정보를 확인합니다.") # 롤 챔피언 210105 / 240313 / 260619 / 260622
     @app_commands.describe(champion="챔피언 이름")
     async def cham_info(self, interaction: discord.interactions, champion:str):
-        CHAM_ABBR_MAP = {
-            '갱플' : '갱플랭크', '그가' : '그라가스', '그브' : '그레이브즈',
-            '노틸' : '노틸러스', '누누' : '누누와 윌럼프', '다리' : '다리우스',
-            '드븐' : '드레이븐', '레나타' : '레나타 글라스크', '레넥' : '레넥톤',
-            '리산' : '리산드라', '마이' : '마스터 이', '마오' : '마오카이',
-            '말파' : '말파이트', '모데' : '모데카이저', '몰가' : '모르가나',
-            '문도' : '문도 박사', '미포' : '미스 포츈', '볼베' : '볼리베어',
-            '브라' : '브라이어', '블라디' : '블라디미르', '블미' : '블라디미르',
-            '블츠' : '블리츠크랭크', '블랭' : '블리츠크랭크', '사일' : '사일러스',
-            '세주' : '세주아니', '신짜오' : '신 짜오', '리신' : '리 신',
-            '쓸쉬' : '쓰레쉬', '아우솔' : '아우렐리온 솔', '아트' : '아트록스',
-            '아펠' : '아펠리오스', '알리' : '알리스타', '야소' : '야스오',
-            '오리' : '오리아나', '이렐' : '이렐리아', '이즈' : '이즈리얼',
-            '일라' : '일라오이', '자르반' : '자르반 4세', '카시' : '카시오페아',
-            '카타' : '카타리나', '칼리' : '칼리스타', '케틀' : '케이틀린',
-            '킨드' : '킨드레드', '탐켄치' : '탐 켄치', '켄치' : '탐 켄치',
-            '트타' : '트리스타나', '트리' : '트리스타나', '트린' : '트린다미어',
-            '트페' : '트위스티드 페이트', '트위스티드페이트' : '트위스티드 페이트',
-            '피들' : '피들스틱', '하딩' : '하이머딩거' }
         
-        champion = CHAM_ABBR_MAP.get(champion, champion)
+        champion = self.CHAM_ABBR_MAP.get(champion, champion)
 
         game_ver_url = "https://ddragon.leagueoflegends.com/api/versions.json"
         game_ver = (await get_json(game_ver_url))[0]
@@ -300,11 +334,11 @@ class RiotCog(commands.Cog):
         champion_data = await get_json(champion_data_url)
         
         champion_id = ""
-        champion_key = ""
+        # champion_key = ""
         for val in champion_data['data'].values():
             if str(champion) == val['name']:
                 champion_id = val['id']
-                champion_key = val['key']
+                # champion_key = val['key']
                 break
 
         champion_data_url = f"https://ddragon.leagueoflegends.com/cdn/{game_ver}/data/ko_KR/champion/{champion_id}.json"
@@ -312,7 +346,7 @@ class RiotCog(commands.Cog):
 
         embed = build_simple_embed(
             title= champion,
-            description="상세 능력치 및 스킬입니다."
+            description="스킬 정보입니다."
         )
         champion_url = f"https://op.gg/ko/lol/champions/{champion_id}/build"
         embed.url = champion_url
@@ -320,24 +354,24 @@ class RiotCog(commands.Cog):
         thumbnail_url = f"https://ddragon.leagueoflegends.com/cdn/{game_ver}/img/champion/{champion_id}.png"
         embed.set_thumbnail(url = thumbnail_url)
 
-        stats = champion_data['data'][champion_id]['stats']
+        # stats = champion_data['data'][champion_id]['stats']
 
-        embed.add_field(name="❤️ 체력 (HP)", value=f"`{stats['hp']}` (+{stats['hpperlevel']}/Lv)", inline=True)
-        embed.add_field(name="💧 마나 (MP)", value=f"`{stats['mp']}` (+{stats['mpperlevel']}/Lv)", inline=True)
-        embed.add_field(name="👟 이동 속도", value=f"`{stats['movespeed']}`", inline=True)
+        # embed.add_field(name="❤️ 체력 (HP)", value=f"`{stats['hp']}` (+{stats['hpperlevel']}/Lv)", inline=True)
+        # embed.add_field(name="💧 마나 (MP)", value=f"`{stats['mp']}` (+{stats['mpperlevel']}/Lv)", inline=True)
+        # embed.add_field(name="👟 이동 속도", value=f"`{stats['movespeed']}`", inline=True)
 
-        embed.add_field(name="🛡️ 방어력", value=f"`{stats['armor']}` (+{stats['armorperlevel']}/Lv)", inline=True)
-        embed.add_field(name="🔮 마법 저항력", value=f"`{stats['spellblock']}` (+{stats['spellblockperlevel']}/Lv)", inline=True)
-        embed.add_field(name="⚔️ 공격력 (AD)", value=f"`{stats['attackdamage']}` (+{stats['attackdamageperlevel']}/Lv)", inline=True)
+        # embed.add_field(name="🛡️ 방어력", value=f"`{stats['armor']}` (+{stats['armorperlevel']}/Lv)", inline=True)
+        # embed.add_field(name="🔮 마법 저항력", value=f"`{stats['spellblock']}` (+{stats['spellblockperlevel']}/Lv)", inline=True)
+        # embed.add_field(name="⚔️ 공격력 (AD)", value=f"`{stats['attackdamage']}` (+{stats['attackdamageperlevel']}/Lv)", inline=True)
 
-        embed.add_field(name="💚 체력 재생 (5초)", value=f"`{stats['hpregen']}` (+{stats['hpregenperlevel']}/Lv)", inline=True)
-        embed.add_field(name="💙 마나 재생 (5초)", value=f"`{stats['mpregen']}` (+{stats['mpregenperlevel']}/Lv)", inline=True)
-        embed.add_field(name="⚡ 공격 속도", value=f"`{stats['attackspeed']}` (+{stats['attackspeedperlevel']}%/Lv)", inline=True)
+        # embed.add_field(name="💚 체력 재생 (5초)", value=f"`{stats['hpregen']}` (+{stats['hpregenperlevel']}/Lv)", inline=True)
+        # embed.add_field(name="💙 마나 재생 (5초)", value=f"`{stats['mpregen']}` (+{stats['mpregenperlevel']}/Lv)", inline=True)
+        # embed.add_field(name="⚡ 공격 속도", value=f"`{stats['attackspeed']}` (+{stats['attackspeedperlevel']}%/Lv)", inline=True)
 
         passive = champion_data['data'][champion_id]['passive']
         embed.add_field(
-            name=f"🟢 패시브 - {passive['name']}",
-            value=f"> {passive['description'].replace('<br>', '')}\n",
+            name=f"{discord.utils.get(self.riot_emoji, name=passive['image']['full'][:-4])}   패시브 - {passive['name']}",
+            value=f"> {passive['description'].replace('<br>', '\n')}\n",
             inline=False
         )
 
@@ -345,29 +379,124 @@ class RiotCog(commands.Cog):
         # 3. Q, W, E, R 스킬 정보 반복문으로 추가
         skill_keys = ["Q", "W", "E", "R"]
         for i, spell in enumerate(spells):
-
+            costBurn = spell['costType'] if spell['costType'] == '소모값 없음' else spell['costBurn']
+            if costBurn:
+                costBurn = '소모값 없음'
 
             embed.add_field(
-                name=f"🔥 {skill_keys[i]} - {spell['name']}",
-                value=f"> {spell['description'].replace('<br>', '')}\n"
+                name=f"{discord.utils.get(self.riot_emoji, name=spell['image']['full'][:-4])}   {skill_keys[i]} - {spell['name']}",
+                value=f"> {spell['description'].replace('<br>', '\n> ')}\n"
                     f"⏱️ **쿨타임:** {spell['cooldownBurn'].replace('/', ' / ')}초 |"
-                    f"💧 **소모:** {spell['costType'] if spell['costType'] == '소모값 없음' else spell['costBurn']}",
+                    f"💧 **소모:** {costBurn}",
                 inline=False
             )
 
-        separator = "\\*" * 40
-        embed.add_field(name="", value=f"**{separator}**", inline=False)
+        # separator = "\\*" * 40
+        # embed.add_field(name="", value=f"**{separator}**", inline=False)
     
-        # 아군 팁 줄바꿈 처리하여 문자열로 합성
-        ally_tips_text = "\n".join([f"- {tip}" for tip in champion_data['data'][champion_id]['allytips']])
-        embed.add_field(name="🔵 플레이할 때 (Ally Tips)", value=f"{ally_tips_text}", inline=False)
+        # # 아군 팁 줄바꿈 처리하여 문자열로 합성
+        # ally_tips_text = "\n".join([f"- {tip}" for tip in champion_data['data'][champion_id]['allytips']])
+        # embed.add_field(name="🔵 플레이할 때 (Ally Tips)", value=f"{ally_tips_text}", inline=False)
 
-        # 적군 팁 줄바꿈 처리하여 문자열로 합성
-        enemy_tips_text = "\n".join([f"- {tip}" for tip in champion_data['data'][champion_id]['enemytips']])
-        embed.add_field(name="🔴 상대할 때 (Enemy Tips)", value=f"{enemy_tips_text}", inline=False)
+        # # 적군 팁 줄바꿈 처리하여 문자열로 합성
+        # enemy_tips_text = "\n".join([f"- {tip}" for tip in champion_data['data'][champion_id]['enemytips']])
+        # embed.add_field(name="🔴 상대할 때 (Enemy Tips)", value=f"{enemy_tips_text}", inline=False)
 
         embed.set_footer(text=f"OP.GG로 이동  •  Riot Games 제공")
         
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+#########################################################################################################
+
+    @app_commands.command(name="스킬가속", description="해당 챔피언의 스킬 가속를 확인합니다.") # 스킬가속 계산기 260622
+    @app_commands.describe(champion="챔피언 이름")
+    @app_commands.describe(cooldown_reduction="스킬가속")
+    @app_commands.describe(enemy_champion="상대 챔피언 이름 (선택사항)")
+    @app_commands.describe(enemy_cooldown_reduction="상대 스킬가속 (선택사항)")
+    async def cdr_cal(self, interaction: discord.interactions, champion:str, cooldown_reduction:int,
+                        enemy_champion:Optional[str]=None, enemy_cooldown_reduction:Optional[int]=None):
+        
+        enemy_flag = False
+        champion = self.CHAM_ABBR_MAP.get(champion, champion)
+        if enemy_champion:
+            enemy_champion = self.CHAM_ABBR_MAP.get(enemy_champion, enemy_champion)
+            enemy_flag = True
+            if enemy_cooldown_reduction is None: # 스킬가속 입력 X 시
+                await interaction.response.send_message("스킬가속을 입력해주세요!", ephemeral=True)
+                return
+                        
+        game_ver_url = "https://ddragon.leagueoflegends.com/api/versions.json"
+        game_ver = (await get_json(game_ver_url))[0]
+
+        champion_data_url = f"https://ddragon.leagueoflegends.com/cdn/{game_ver}/data/ko_KR/champion.json" # 이름 찾기
+        champion_data = await get_json(champion_data_url)
+        
+        champion_id = ""
+        for val in champion_data['data'].values():
+            if str(champion) == val['name']:
+                champion_id = val['id']
+                break
+
+        if not champion_id: # 오타, 없는 챔피언
+            await interaction.response.send_message("해당하는 챔피언의 정보가 없습니다!", ephemeral=True)
+            return
+        
+        enemy_champion_id =""
+        if enemy_flag:
+            for val in champion_data['data'].values():
+                if str(enemy_champion) == val['name']:
+                    enemy_champion_id = val['id']
+                    break
+
+            if not enemy_champion_id: # 오타, 없는 챔피언
+                await interaction.response.send_message("해당하는 상대 챔피언의 정보가 없습니다!", ephemeral=True)
+                return
+
+        embed = build_simple_embed(
+            title= "스킬가속 계산기",
+            description=""
+        )
+
+        champion_data_url = f"https://ddragon.leagueoflegends.com/cdn/{game_ver}/data/ko_KR/champion/{champion_id}.json"
+        champion_data = await get_json(champion_data_url)
+
+        spells = champion_data['data'][champion_id]['spells']
+
+        cooldown=[]
+        for spell in spells:
+            cooldown.append([round(cd * (100 / (100 + cooldown_reduction)), 2) for cd in [float(x) for x in spell['cooldownBurn'].split('/')]])
+
+        if enemy_flag:
+            champion_data_url = f"https://ddragon.leagueoflegends.com/cdn/{game_ver}/data/ko_KR/champion/{enemy_champion_id}.json"
+            champion_data = await get_json(champion_data_url)
+
+            enemy_spells = champion_data['data'][enemy_champion_id]['spells']
+
+            enemy_cooldown=[]
+            for spell in enemy_spells:
+                enemy_cooldown.append([round(cd * (100 / (100 + enemy_cooldown_reduction)), 2) for cd in [float(x) for x in spell['cooldownBurn'].split('/')]])
+        
+        slot_names = ['Q', 'W', 'E', 'R']
+
+        # 내 스킬 정보 필드 추가
+        my_text = f"**⚙️ 스킬 가속:** `{cooldown_reduction}`\n\n"
+        for i, spell in enumerate(spells):
+            # 리스트 형식 [10, 9, 8]을 '10 / 9 / 8' 문자열로 변환
+            cd_str = " / ".join(map(str, cooldown[i]))
+            my_text += f"{discord.utils.get(self.riot_emoji, name=spell['image']['full'][:-4])}   **{slot_names[i]} ({spell['name']})**\n> {cd_str} 초\n"
+
+        embed.add_field(name=f"{discord.utils.get(self.riot_emoji, name=champion_id)} {champion}", value=my_text, inline=True)
+
+        if enemy_flag:
+            # 상대 스킬 정보 필드 추가
+            enemy_text = f"**⚙️ 스킬 가속:** `{enemy_cooldown_reduction}`\n\n"
+            for i, spell in enumerate(enemy_spells):
+                enemy_cd_str = " / ".join(map(str, enemy_cooldown[i]))
+                enemy_text += f"{discord.utils.get(self.riot_emoji, name=spell['image']['full'][:-4])}  **{slot_names[i]} ({spell['name']})**\n> {enemy_cd_str} 초\n"
+
+            embed.add_field(name=f"{discord.utils.get(self.riot_emoji, name=enemy_champion_id)} {enemy_champion}", value=enemy_text, inline=True)
+        
+        embed.set_footer(text=f"Riot Games 제공")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 async def setup(bot):
