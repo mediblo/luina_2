@@ -168,16 +168,5 @@ class ApiCog(commands.Cog):
 
 #########################################################################################################
 
-    @app_commands.command(name="번역", description="단어에 대한 사전적 용어를 알려줍니다") # 사전 201105 / 260618
-    async def translate(self, interaction: discord.interactions):
-        api_url = "https://libretranslate.com/translate"
-        payLoad = {
-            "q": "Hello, world!",
-            "source": "en",
-            "target": "ko",
-            "format": "text",
-            "api_key": "" # 퍼블릭 API 실운영 시 필요하다면 입력
-        }
-
 async def setup(bot):
     await bot.add_cog(ApiCog(bot))

@@ -371,7 +371,7 @@ class RiotCog(commands.Cog):
         passive = champion_data['data'][champion_id]['passive']
         embed.add_field(
             name=f"{discord.utils.get(self.riot_emoji, name=passive['image']['full'][:-4])}   패시브 - {passive['name']}",
-            value=f"> {passive['description'].replace('<br>', '\n')}\n",
+            value=f"> {passive['description'].replace('<br>', '\n> ')}\n",
             inline=False
         )
 
@@ -380,7 +380,7 @@ class RiotCog(commands.Cog):
         skill_keys = ["Q", "W", "E", "R"]
         for i, spell in enumerate(spells):
             costBurn = spell['costType'] if spell['costType'] == '소모값 없음' else spell['costBurn']
-            if costBurn:
+            if costBurn == "0":
                 costBurn = '소모값 없음'
 
             embed.add_field(
@@ -483,16 +483,45 @@ class RiotCog(commands.Cog):
         for i, spell in enumerate(spells):
             # 리스트 형식 [10, 9, 8]을 '10 / 9 / 8' 문자열로 변환
             cd_str = " / ".join(map(str, cooldown[i]))
-            my_text += f"{discord.utils.get(self.riot_emoji, name=spell['image']['full'][:-4])}   **{slot_names[i]} ({spell['name']})**\n> {cd_str} 초\n"
+            my_text += f"{discord.utils.get(self.riot_emoji, name=spell['image']['full'][:-4])}   **{slot_names[i]} ({spell['name']})**\n> {cd_str}\n"
 
         embed.add_field(name=f"{discord.utils.get(self.riot_emoji, name=champion_id)} {champion}", value=my_text, inline=True)
 
         if enemy_flag:
+            diff_text = "**쿨타임 비교**\n*(내 쿨 - 상대 쿨)*\n\n"
+            
+            for i, spell in enumerate(spells):
+                diff_slots = []
+                # 두 챔피언의 스킬 레벨 수가 다를 경우를 대비해 최소 길이에 맞춤 (보통 5개 혹은 3개)
+                min_levels = min(len(cooldown[i]), len(enemy_cooldown[i]))
+                
+                for lvl in range(min_levels):
+                    my_cd = cooldown[i][lvl]
+                    enemy_cd = enemy_cooldown[i][lvl]
+                    diff = round(my_cd - enemy_cd, 2)
+                    abs_diff = abs(diff)
+                    
+                    if diff < 0:
+                        # 내가 더 빨리 도는 경우 (음수)
+                        diff_slots.append(f"-{abs_diff}s")
+                    elif diff > 0:
+                        # 상대가 더 빨리 도는 경우 (양수)
+                        diff_slots.append(f"+{abs_diff}s")
+                    else:
+                        # 쿨타임이 완전히 같은 경우
+                        diff_slots.append(f"0s")
+                
+                diff_str = " / ".join(diff_slots)
+                diff_text += f"**{slot_names[i]}**\n> {diff_str}\n"
+
+            # 가운데에 쿨타임 차이 필드 삽입 (inline=True)
+            embed.add_field(name="⏱️ 쿨타임 차이", value=diff_text, inline=True)
+
             # 상대 스킬 정보 필드 추가
             enemy_text = f"**⚙️ 스킬 가속:** `{enemy_cooldown_reduction}`\n\n"
             for i, spell in enumerate(enemy_spells):
                 enemy_cd_str = " / ".join(map(str, enemy_cooldown[i]))
-                enemy_text += f"{discord.utils.get(self.riot_emoji, name=spell['image']['full'][:-4])}  **{slot_names[i]} ({spell['name']})**\n> {enemy_cd_str} 초\n"
+                enemy_text += f"{discord.utils.get(self.riot_emoji, name=spell['image']['full'][:-4])}  **{slot_names[i]} ({spell['name']})**\n> {enemy_cd_str}\n"
 
             embed.add_field(name=f"{discord.utils.get(self.riot_emoji, name=enemy_champion_id)} {enemy_champion}", value=enemy_text, inline=True)
         
