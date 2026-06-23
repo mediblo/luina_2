@@ -488,35 +488,6 @@ class RiotCog(commands.Cog):
         embed.add_field(name=f"{discord.utils.get(self.riot_emoji, name=champion_id)} {champion}", value=my_text, inline=True)
 
         if enemy_flag:
-            diff_text = "**쿨타임 비교**\n*(내 쿨 - 상대 쿨)*\n\n"
-            
-            for i, spell in enumerate(spells):
-                diff_slots = []
-                # 두 챔피언의 스킬 레벨 수가 다를 경우를 대비해 최소 길이에 맞춤 (보통 5개 혹은 3개)
-                min_levels = min(len(cooldown[i]), len(enemy_cooldown[i]))
-                
-                for lvl in range(min_levels):
-                    my_cd = cooldown[i][lvl]
-                    enemy_cd = enemy_cooldown[i][lvl]
-                    diff = round(my_cd - enemy_cd, 2)
-                    abs_diff = abs(diff)
-                    
-                    if diff < 0:
-                        # 내가 더 빨리 도는 경우 (음수)
-                        diff_slots.append(f"-{abs_diff}s")
-                    elif diff > 0:
-                        # 상대가 더 빨리 도는 경우 (양수)
-                        diff_slots.append(f"+{abs_diff}s")
-                    else:
-                        # 쿨타임이 완전히 같은 경우
-                        diff_slots.append(f"0s")
-                
-                diff_str = " / ".join(diff_slots)
-                diff_text += f"**{slot_names[i]}**\n> {diff_str}\n"
-
-            # 가운데에 쿨타임 차이 필드 삽입 (inline=True)
-            embed.add_field(name="⏱️ 쿨타임 차이", value=diff_text, inline=True)
-
             # 상대 스킬 정보 필드 추가
             enemy_text = f"**⚙️ 스킬 가속:** `{enemy_cooldown_reduction}`\n\n"
             for i, spell in enumerate(enemy_spells):

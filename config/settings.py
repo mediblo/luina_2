@@ -22,5 +22,6 @@ openweathermap_api = 'ad682d3ccaf8a6c9c516073e7ef2f4fd' # OpenWeathermap 임시 
 exchangerate_api = 'cb2c19f8d2b03b7dc9dde010' # ExchangeRate 임시 api
 riot_api = 'RGAPI-34c3764f-27a3-44c4-9a43-d3836d6f8dfc' # riot_api 임시 api [ 24H ]
 on_word_api = '731hADyp-55QI-PUmX-eDoS-Cw1jWvlq' # 온용어 api [ 임시 ]
+genius_api = 'x7aWBCyav0jUxQpVOQZJjc5_P5ypIling5CAIuuxZ_l8PyQSgA4Yis7QEO89Otzl'
 
 ## TODO : api 작동 확인 코드

@@ -262,5 +262,21 @@ class General(commands.Cog):
                 )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
+#########################################################################################################
+
+    @app_commands.command(name="청소", description="메시지를 삭제합니다") # 청소 210101 / 260623
+    @app_commands.describe(count ="삭제 갯수 입력 (최대 100개)")
+    async def clean_msg(self, interaction: discord.Interaction, count:int):
+        if count > 100:
+            await interaction.response.send_message("수가 너무 큽니다.", ephemeral=True)
+            return
+        elif count <= 0:
+            await interaction.response.send_message("음수?", ephemeral=True)
+            return
+        
+        await interaction.response.defer(ephemeral=True)
+        await interaction.channel.purge(limit=(count))
+        await interaction.followup.send(f"메시지 {count}개 청소 완료")
+
 async def setup(bot):
     await bot.add_cog(General(bot))

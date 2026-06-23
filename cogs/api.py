@@ -1,8 +1,10 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
+import lyricsgenius
+from typing import Optional
 
-from config.settings import openweathermap_api, exchangerate_api, on_word_api
+from config.settings import openweathermap_api, exchangerate_api, on_word_api, genius_api
 from utils.embed_builder import build_simple_embed
 from utils.http_client import get_json
 
@@ -165,6 +167,75 @@ class ApiCog(commands.Cog):
 
         # 메시지 전송
         await interaction.response.send_message(embed=embed, ephemeral = True)
+
+#########################################################################################################
+
+    @app_commands.command(name="가사", description="노래에 대한 가사를 알려줍니다.") # 가사 201203 / 260623
+    @app_commands.describe(song="노래 제목")
+    @app_commands.describe(artist="가수 (선택사항)")
+    async def search_lyric(self, interaction: discord.interactions, song:str, artist:Optional[str] = None):
+        await interaction.response.defer(ephemeral=True)
+        genius = lyricsgenius.Genius(genius_api, skip_non_songs=True)
+        
+        data = genius.search_song(song, artist=artist)
+        
+        if not data:
+            await interaction.followup.send(
+                f"❌ **'{song}'** (아티스트: {artist or '미지정'})에 대한 가사를 찾을 수 없습니다.", 
+                ephemeral=True
+            )
+            return
+
+        # 1. 기본 임베드 디자인 세팅
+        embed = build_simple_embed(
+            title=data.title,
+            description=f"**아티스트:** {data.artist}"
+        )
+        embed.url = data.url
+
+        if data.song_art_image_url:
+            embed.set_thumbnail(url=data.song_art_image_url)
+
+        # 2. 🔥 가사 데이터 정제 (중요!)
+        lyrics = data.lyrics
+
+        # [텍스트 가사] 형식으로 시작하는 첫 번째 줄(찌꺼기) 제거
+        lines = lyrics.split("\n")
+        if lines and lines[0].startswith("[") and "가사" in lines[0]:
+            lines = lines[1:]  # 첫 줄을 버립니다.
+        lyrics = "\n".join(lines).strip()
+
+        # Genius 특유의 맨 끝 "숫자Embed" 찌꺼기 제거 (예: "25Embed" -> 제거)
+        if lyrics.endswith("Embed"):
+            lyrics = lyrics[:-5]  # 끝의 "Embed" 글자 제거
+            # 그 직전에 남은 숫자들도 제거
+            while lyrics and lyrics[-1].isdigit():
+                lyrics = lyrics[:-1]
+            lyrics = lyrics.strip()
+
+        # 3. 디스코드 글자 수 한계(필드당 900자)에 맞춰 이쁘게 쪼개기
+        max_length = 900
+        
+        if len(lyrics) <= max_length:
+            embed.add_field(name="🎤 가사", value=f"```txt\n{lyrics}\n```", inline=False)
+            await interaction.followup.send(embed=embed, ephemeral = True)
+        else:
+            # 가사가 길면 900자 단위로 쪼갬
+            lyrics_chunks = [lyrics[i:i+max_length] for i in range(0, len(lyrics), max_length)]
+            
+            # 첫 번째 파트는 원래 interaction 응답으로 전송
+            embed.add_field(name="🎤 가사 (1/n)", value=f"```txt\n{lyrics_chunks[0]}\n```", inline=False)
+            await interaction.followup.send(embed=embed, ephemeral = True)
+            
+            # 두 번째 파트부터는 followup 기능을 이용해 순차적으로 전송
+            for idx, chunk in enumerate(lyrics_chunks[1:], start=2):
+                next_embed = discord.Embed(color=0xFFEB3B)
+                next_embed.add_field(
+                    name=f"🎤 가사 이어보기 ({idx}/{len(lyrics_chunks)})", 
+                    value=f"```txt\n{chunk}\n```", 
+                    inline=False
+                )
+                await interaction.followup.send(embed=next_embed, ephemeral = True)
 
 #########################################################################################################
 

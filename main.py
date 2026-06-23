@@ -9,9 +9,10 @@ intents = discord.Intents.all() # 모든 권한
 class Luina(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix='!', intents=intents, description="Test Luina") # 명령어 접두사 설정, 권한 설정
+        self.start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-4]
 
     async def on_ready(self):
-        print(f"로그인 완료: {self.user} ({datetime.now()})")
+        print(f"로그인 완료: {self.user} ({self.start_time})")
 
     async def setup_hook(self):
         for filename in os.listdir('./cogs'): # cogs 폴더의 모든 파일을 불러옴
