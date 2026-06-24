@@ -4,23 +4,48 @@ from discord import app_commands
 import lyricsgenius
 from typing import Optional
 
-from config.settings import openweathermap_api, exchangerate_api, on_word_api, genius_api
+from config.settings import OPENWEATHERMAP_API, EXCHANGERATE_API, ON_WORD_API, GENIUS_API
 from utils.embed_builder import build_simple_embed
-from utils.http_client import get_json
+from utils.http_client import get_json, get_response
 
 class ApiCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    async def cog_load(self):
+        self.riot_emoji = await self.bot.fetch_application_emojis() # 이모지 불러오기
+        api_url = [
+            f'https://kli.korean.go.kr/term/api/search.do?key={ON_WORD_API}', # 온 용어
+            f'https://api.openweathermap.org/data/2.5/weather?q=Seoul&appid={OPENWEATHERMAP_API}', # 오픈웨더맵
+            f'https://v6.exchangerate-api.com/v6/{EXCHANGERATE_API}/latest/USD', # Exchangerate
+        ]
+        api_name = [
+            '온 용어', '오픈웨더맵', 'Exchangerate',
+        ]
+
+        for i in range(len(api_url)):
+            api_data = await get_response(api_url[i])
+            status = api_data.status_code
+            if 200 <= status < 300:
+                print(f"🟢 {api_name[i]} | Status: {status} (정상 연결)")
+            
+            # 🟡 노랑 동그라미: 호출 제한 초과 (429) 또는 일시적 서버 에러 (500대)
+            elif status == 429 or status >= 500:
+                print(f"🟡 {api_name[i]} | Status: {status} (호출 제한 또는 서버 지연)")
+            
+            # 🔴 빨강 동그라미: 인증 실패 (401, 403) 및 기타 잘못된 요청 (400대)
+            else:
+                print(f"🔴 {api_name[i]} | Status: {status} (인증 실패 또는 잘못된 요청)")
+
     @app_commands.command(name="날씨", description="해당 지역에 대한 날씨 정보를 알려줍니다 ( 한국, 시 한정 )") # 날씨 201206 / 211228 / 230621 / 260617
     @app_commands.describe(city="지역 이름 (서울)")
     async def weather(self, interaction: discord.interactions, city:str):
-        api_url = f'http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=5&appid={openweathermap_api}' # 동일 이름 최대 5개 서치 (Direct geocoding )
+        api_url = f'http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=5&appid={OPENWEATHERMAP_API}' # 동일 이름 최대 5개 서치 (Direct geocoding )
         api_data = await get_json(api_url)
         location = {}
         for x in api_data:
             if x['country'] == 'KR':
-                api_url = f"https://api.openweathermap.org/data/2.5/weather?lat={x['lat']}&lon={x['lon']}&appid={openweathermap_api}" # 날씨 정보 ( current weather data )
+                api_url = f"https://api.openweathermap.org/data/2.5/weather?lat={x['lat']}&lon={x['lon']}&appid={OPENWEATHERMAP_API}" # 날씨 정보 ( current weather data )
                 weather_data = await get_json(api_url)
 
                 location['city'] = f"{city}" # 지역
@@ -99,7 +124,7 @@ class ApiCog(commands.Cog):
             "CNY": 185.0, "GBP": 1700.0, "INR": 16.0, "RUB": 15.0, "PHP": 24.0
         }
                 
-        api_url=f'https://v6.exchangerate-api.com/v6/{exchangerate_api}/latest/{country}'
+        api_url=f'https://v6.exchangerate-api.com/v6/{EXCHANGERATE_API}/latest/{country}'
         api_data = await get_json(api_url)
 
         for cty in COUNTRY_MAP.keys():
@@ -120,7 +145,7 @@ class ApiCog(commands.Cog):
     @app_commands.command(name="사전", description="단어에 대한 사전적 용어를 알려줍니다") # 사전 201105 / 260618
     @app_commands.describe(word="단어 입력")
     async def word_dictonary(self, interaction: discord.interactions, word:str):
-        api_url=f'https://kli.korean.go.kr/term/api/search.do?key={on_word_api}&apiSearchWord={word}&sort=wt&start=1&num=5'
+        api_url=f'https://kli.korean.go.kr/term/api/search.do?key={ON_WORD_API}&apiSearchWord={word}&sort=wt&start=1&num=5'
         api_data = await get_json(api_url)
 
         if api_data['channel'].get('returnCode') == "1":
@@ -175,7 +200,7 @@ class ApiCog(commands.Cog):
     @app_commands.describe(artist="가수 (선택사항)")
     async def search_lyric(self, interaction: discord.interactions, song:str, artist:Optional[str] = None):
         await interaction.response.defer(ephemeral=True)
-        genius = lyricsgenius.Genius(genius_api, skip_non_songs=True)
+        genius = lyricsgenius.Genius(GENIUS_API, skip_non_songs=True)
         
         data = genius.search_song(song, artist=artist)
         

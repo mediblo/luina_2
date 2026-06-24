@@ -3,9 +3,9 @@ from discord.ext import commands
 from discord import app_commands
 from typing import Optional
 
-from utils.http_client import get_json
+from utils.http_client import get_json, get_response
 
-from config.settings import riot_api
+from config.settings import RIOT_API
 from utils.embed_builder import build_simple_embed
 
 class RiotCog(commands.Cog):
@@ -33,12 +33,26 @@ class RiotCog(commands.Cog):
             '피들' : '피들스틱', '하딩' : '하이머딩거' }
 
     async def cog_load(self):
-        self.riot_emoji = await self.bot.fetch_application_emojis()
+        self.riot_emoji = await self.bot.fetch_application_emojis() # 이모지 불러오기
+        api_url = f'https://kr.api.riotgames.com/lol/status/v4/platform-data?api_key={RIOT_API}'
+        api_data = await get_response(api_url)
+        status = api_data.status_code
+
+        if 200 <= status < 300:
+            print(f"🟢 Riot Games (KR) | Status: {status} (정상 연결)")
+        
+        # 🟡 노랑 동그라미: 호출 제한 초과 (429) 또는 일시적 서버 에러 (500대)
+        elif status == 429 or status >= 500:
+            print(f"🟡 Riot Games (KR) | Status: {status} (호출 제한 또는 서버 지연)")
+        
+        # 🔴 빨강 동그라미: 인증 실패 (401, 403) 및 기타 잘못된 요청 (400대)
+        else:
+            print(f"🔴 Riot Games (KR) | Status: {status} (인증 실패 또는 잘못된 요청)")
 
 #########################################################################################################
 
-    async def _fetch_match_data(self, match_id, riot_api):
-        api_url = f"https://asia.api.riotgames.com/lol/match/v5/matches/{match_id}?api_key={riot_api}"
+    async def _fetch_match_data(self, match_id, RIOT_API):
+        api_url = f"https://asia.api.riotgames.com/lol/match/v5/matches/{match_id}?api_key={RIOT_API}"
         try:
             return await get_json(api_url)
         except Exception as e:
@@ -88,7 +102,7 @@ class RiotCog(commands.Cog):
             await interaction.followup.send(content="닉네임에 태그(#)를 포함해 주세요. (예: 닉네임#KR1)", ephemeral=True)
             return
         
-        api_url=f"https://asia.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{nickname[0]}/{nickname[1]}?api_key={riot_api}" # puuid 구하기 [account-v1]
+        api_url=f"https://asia.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{nickname[0]}/{nickname[1]}?api_key={RIOT_API}" # puuid 구하기 [account-v1]
         api_data = await get_json(api_url)
 
         if api_data.get('status', {}).get('status_code') == 404:
@@ -98,18 +112,18 @@ class RiotCog(commands.Cog):
         puuid = api_data['puuid']
         name = f"{api_data['gameName']}#{api_data['tagLine']}"
 
-        api_url = f"https://kr.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}?api_key={riot_api}"
+        api_url = f"https://kr.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}?api_key={RIOT_API}"
         api_data = await get_json(api_url)
         profile_icon = api_data['profileIconId']
 
-        api_url=f"https://asia.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?start=0&count=20&api_key={riot_api}" # 매치id 구하기 [match-v5]
+        api_url=f"https://asia.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?start=0&count=20&api_key={RIOT_API}" # 매치id 구하기 [match-v5]
         matchs = await get_json(api_url)
 
         if not matchs:
             await interaction.followup.send("최근 플레이한 전적이 없습니다.", ephemeral=True)
             return
 
-        tasks = [self._fetch_match_data(match_id, riot_api) for match_id in matchs] # 병렬 매치 불러오기
+        tasks = [self._fetch_match_data(match_id, RIOT_API) for match_id in matchs] # 병렬 매치 불러오기
         all_match_responses = await asyncio.gather(*tasks, return_exceptions=True)
 
         match_data = []
@@ -238,7 +252,7 @@ class RiotCog(commands.Cog):
             'FiddleSticks' : 'Fiddlesticks'
         }
 
-        api_url=f"https://asia.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{nickname[0]}/{nickname[1]}?api_key={riot_api}" # puuid 구하기 [account-v1]
+        api_url=f"https://asia.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{nickname[0]}/{nickname[1]}?api_key={RIOT_API}" # puuid 구하기 [account-v1]
         api_data = await get_json(api_url)
 
         if api_data.get('status', {}).get('status_code') == 404:
@@ -247,13 +261,13 @@ class RiotCog(commands.Cog):
 
         puuid = api_data['puuid']
         name = f"{api_data['gameName']}#{api_data['tagLine']}"
-        api_url = f"https://kr.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}?api_key={riot_api}"
+        api_url = f"https://kr.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}?api_key={RIOT_API}"
         api_data = await get_json(api_url)
         profile_icon = api_data['profileIconId']
         player_level = api_data['summonerLevel']
 
         # most 3 [ champion-mastery-v4 ]
-        api_url = f"https://kr.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-puuid/{puuid}/top?count=3&api_key={riot_api}"
+        api_url = f"https://kr.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-puuid/{puuid}/top?count=3&api_key={RIOT_API}"
         api_data = await get_json(api_url)
 
         most_data=[]
@@ -282,7 +296,7 @@ class RiotCog(commands.Cog):
                     data['name'] = val['id']
 
         # 솔랭 자랭 [ league-v4 ]
-        api_url = f"https://kr.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}?api_key={riot_api}"
+        api_url = f"https://kr.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}?api_key={RIOT_API}"
         api_data = await get_json(api_url)
 
         rank={}
@@ -320,6 +334,8 @@ class RiotCog(commands.Cog):
         
         embed.set_footer(text=f"OP.GG로 이동  •  Riot Games 제공")
         await interaction.followup.send(embed=embed, ephemeral=True)
+
+#########################################################################################################
 
     @app_commands.command(name="롤챔프", description="해당 챔피언의 스킬 정보를 확인합니다.") # 롤 챔피언 210105 / 240313 / 260619 / 260622
     @app_commands.describe(champion="챔피언 이름")

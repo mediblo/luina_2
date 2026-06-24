@@ -278,5 +278,29 @@ class General(commands.Cog):
         await interaction.channel.purge(limit=(count))
         await interaction.followup.send(f"메시지 {count}개 청소 완료")
 
+#########################################################################################################
+
+    @app_commands.command(name="서버리스트", description="개발자 전용 서버 목록 확인 커맨드")
+    async def 서버리스트(self, interaction: discord.Interaction): # ctx -> interaction으로 변경
+        if interaction.user.id == 442284517223301120: 
+            guild_list = self.bot.guilds
+            text = []
+            
+            for guild in guild_list:
+                text.append(f"서버명 : {guild.name}, 멤버 수 : {guild.member_count}\n")
+            
+            total_servers = len(text) - 0 # 개발자 서버 제외
+            # 리스트 내용을 하나의 문자열로 합침
+            server_info = "".join(text)
+            
+            # 첫 번째 메시지 전송
+            await interaction.response.send_message(f"개인서버 제외 서버 수 : {total_servers}")
+            # 두 번째 메시지부터는 followup을 사용해야 합니다.
+            await interaction.followup.send(f"```{server_info}```")
+            
+        else:
+            # ephemral=True를 쓰면 delete_after 없이 그 사용자에게만 보이고 나중에 사라집니다!
+            await interaction.response.send_message("제작자가 아닙니다.", ephemeral=True)
+
 async def setup(bot):
     await bot.add_cog(General(bot))
