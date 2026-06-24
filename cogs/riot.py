@@ -464,7 +464,7 @@ class RiotCog(commands.Cog):
 
         cooldown=[]
         for spell in spells:
-            cooldown.append([round(cd * (100 / (100 + cooldown_reduction)), 2) for cd in [float(x) for x in spell['cooldownBurn'].split('/')]])
+            cooldown.append([round(cd * (100 / (100 + cooldown_reduction)), 1) for cd in [float(x) for x in spell['cooldownBurn'].split('/')]])
 
         if enemy_flag:
             champion_data_url = f"https://ddragon.leagueoflegends.com/cdn/{game_ver}/data/ko_KR/champion/{enemy_champion_id}.json"
@@ -474,7 +474,7 @@ class RiotCog(commands.Cog):
 
             enemy_cooldown=[]
             for spell in enemy_spells:
-                enemy_cooldown.append([round(cd * (100 / (100 + enemy_cooldown_reduction)), 2) for cd in [float(x) for x in spell['cooldownBurn'].split('/')]])
+                enemy_cooldown.append([round(cd * (100 / (100 + enemy_cooldown_reduction)), 1) for cd in [float(x) for x in spell['cooldownBurn'].split('/')]])
         
         slot_names = ['Q', 'W', 'E', 'R']
 
