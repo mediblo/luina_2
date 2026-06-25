@@ -89,7 +89,7 @@ class LostarkCog(commands.Cog):
                 embed.add_field(name=field_name, value=field_value, inline=False)
 
         # 5. 결과 전송
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed)
 
 #########################################################################################################
 
@@ -169,22 +169,28 @@ class LostarkCog(commands.Cog):
         # 완성된 텍스트를 임베드 설명에 삽입
         embed.description = description_text
     
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed)
 
 #########################################################################################################
 
     @app_commands.command(name="로아캐릭터", description="로스트아크 캐릭터 정보를 요약하여 확인합니다.") # 캐릭터 231101 / 버튼 추가 231106 / 궁극기 삭제 241120 / 260625
-    @app_commands.describe(nickname="닉네임")
-    async def test(self, interaction: discord.Interaction, nickname: str):
+    @app_commands.describe(닉네임="닉네임")
+    @app_commands.describe(공개여부="공개 여부 (기본값: 공개)")
+    @app_commands.choices(공개여부=[
+        app_commands.Choice(name="공개", value=1),
+        app_commands.Choice(name="비공개", value=0)
+    ])
+    async def test(self, interaction: discord.Interaction, 닉네임: str, 공개여부: int = 1):
         await interaction.response.defer(ephemeral=True)
+        공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
         
-        loawa_url = f"https://loawa.com/char/{nickname}"
-        api_url = f"https://developer-lostark.game.onstove.com/armories/characters/{nickname}"
+        loawa_url = f"https://loawa.com/char/{닉네임}"
+        api_url = f"https://developer-lostark.game.onstove.com/armories/characters/{닉네임}"
         api_response = await get_response(api_url, headers=self.headers)
 
         # 1. API 에러 및 존재하지 않는 캐릭터 처리
         if api_response.text == "null" or not api_response.text:
-            await interaction.followup.send(f"❌ **{nickname}** - 존재하지 않거나 검색할 수 없는 닉네임입니다.", ephemeral=True)
+            await interaction.followup.send(f"❌ **{닉네임}** - 존재하지 않거나 검색할 수 없는 닉네임입니다.", ephemeral=True)
             return
         elif api_response.status_code != 200:
             await interaction.followup.send("⚠️ 로스트아크 API 서버와 통신 중 에러가 발생했습니다.", ephemeral=True)
@@ -205,8 +211,8 @@ class LostarkCog(commands.Cog):
         # 2. 임베드 기본 세팅 (색상 적용 및 Description 활용)
         # 기존 build_simple_embed 대신 discord.Embed를 직접 사용하여 디자인 자유도를 높임
         embed = discord.Embed(
-            title=f"👑 {nickname} ({char_class})",
-            description=f"**서버:** {server_name} \| **길드:** {guild_name}",
+            title=f"👑 {닉네임} ({char_class})",
+            description=f"**서버:** {server_name} | **길드:** {guild_name}",
             color=0x2b2d31, # 디스코드 다크모드 배경과 잘 어울리는 세련된 회색 (원하는 Hex 색상으로 변경 가능)
             url=loawa_url
         )
@@ -257,7 +263,7 @@ class LostarkCog(commands.Cog):
 
         embed.set_footer(text="LostArk Open API", icon_url=interaction.user.display_avatar.url)
         
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=공개여부)
 
 #########################################################################################################
 

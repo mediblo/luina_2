@@ -61,9 +61,9 @@ class RiotCog(commands.Cog):
             return None
 
     @app_commands.command(name="전적", description="해당 유저의 최근 10판을 확인합니다.") # 전적 201212 / 220808 / 260618
-    @app_commands.describe(nickname="태그 포함")
+    @app_commands.describe(닉네임="태그 포함")
     @app_commands.choices(
-        mode=[ # 신속, 일반, 솔랭, 자랭, 칼바람, 아레나
+        모드=[ # 신속, 일반, 솔랭, 자랭, 칼바람, 아레나
             app_commands.Choice(name="신속", value=490),
             app_commands.Choice(name="일반", value=400),
             app_commands.Choice(name="개인/2인 랭크", value=420),
@@ -73,9 +73,18 @@ class RiotCog(commands.Cog):
             app_commands.Choice(name="아레나", value=1750),
         ] 
     )
-    async def match_log(self, interaction: discord.interactions, nickname:str, mode:int = -1):
+    @app_commands.describe(공개여부="공개 여부 (기본값: 공개)")
+    @app_commands.choices(
+        공개여부=[
+            app_commands.Choice(name="공개", value=1),
+            app_commands.Choice(name="비공개", value=0)
+        ]
+    )
+    async def match_log(self, interaction: discord.Interaction, 닉네임:str, 모드:int = -1, 공개여부: int = 1):
         await interaction.response.defer(ephemeral=True)
-        nickname = nickname.split('#')
+        nickname = 닉네임.split('#')
+        mode = 모드
+
         QUEUE_DATA = {
             400 : "일반",
             420 : "솔랭",
@@ -96,6 +105,7 @@ class RiotCog(commands.Cog):
         CHAMPION_RENAME = {
             'FiddleSticks' : 'Fiddlesticks'
         }
+        공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
         
         # 닉네임 형식 예외 처리 (태그 누락 방지)
         if len(nickname) < 2:
@@ -233,15 +243,22 @@ class RiotCog(commands.Cog):
                          icon_url=f"https://ddragon.leagueoflegends.com/cdn/16.12.1/img/profileicon/{profile_icon}.png")
         embed.set_footer(text=f"OP.GG로 이동  •  Riot Games 제공")
         
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=공개여부)
 
 #########################################################################################################
 
     @app_commands.command(name="롤", description="해당 유저의 정보를 확인합니다.") # 롤 ??? / 240313 / 260619
-    @app_commands.describe(nickname="태그 포함")
-    async def lol_info(self, interaction: discord.interactions, nickname:str):
+    @app_commands.describe(닉네임="태그 포함")
+    @app_commands.describe(공개여부="공개 여부 (기본값: 공개)")
+    @app_commands.choices(
+        공개여부=[
+            app_commands.Choice(name="공개", value=1),
+            app_commands.Choice(name="비공개", value=0)
+        ]
+    )
+    async def lol_info(self, interaction: discord.Interaction, 닉네임:str, 공개여부: int = 1):
         await interaction.response.defer(ephemeral=True)
-        nickname = nickname.split('#')
+        nickname = 닉네임.split('#')
         TIER_MAP = {'IRON' : 'I', 'BRONZE' : 'B', 'SILVER' : 'S',
                     'GOLD' : 'G', 'PLATINUM' : 'P', 'EMERALD' : 'E',
                     'DIAMOND' : 'D', 'MASTER' : 'M', 'GRANDMASTER' : 'GM',
@@ -251,6 +268,7 @@ class RiotCog(commands.Cog):
         CHAMPION_RENAME = {
             'FiddleSticks' : 'Fiddlesticks'
         }
+        공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
 
         api_url=f"https://asia.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{nickname[0]}/{nickname[1]}?api_key={RIOT_API}" # puuid 구하기 [account-v1]
         api_data = await get_json(api_url)
@@ -338,10 +356,18 @@ class RiotCog(commands.Cog):
 #########################################################################################################
 
     @app_commands.command(name="롤챔프", description="해당 챔피언의 스킬 정보를 확인합니다.") # 롤 챔피언 210105 / 240313 / 260619 / 260622
-    @app_commands.describe(champion="챔피언 이름")
-    async def cham_info(self, interaction: discord.interactions, champion:str):
-        
-        champion = self.CHAM_ABBR_MAP.get(champion, champion)
+    @app_commands.describe(챔피언="챔피언 이름")
+    @app_commands.describe(공개여부="공개 여부 (기본값: 공개)")
+    @app_commands.choices(
+        공개여부=[
+            app_commands.Choice(name="공개", value=1),
+            app_commands.Choice(name="비공개", value=0)
+        ]
+    )
+    async def cham_info(self, interaction: discord.Interaction, 챔피언:str, 공개여부: int = 1):
+        공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
+
+        champion = self.CHAM_ABBR_MAP.get(챔피언, 챔피언)
 
         game_ver_url = "https://ddragon.leagueoflegends.com/api/versions.json"
         game_ver = (await get_json(game_ver_url))[0]
@@ -420,22 +446,32 @@ class RiotCog(commands.Cog):
 
         embed.set_footer(text=f"OP.GG로 이동  •  Riot Games 제공")
         
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=공개여부)
 
 #########################################################################################################
 
     @app_commands.command(name="스킬가속", description="해당 챔피언의 스킬 가속를 확인합니다.") # 스킬가속 계산기 260622
-    @app_commands.describe(champion="챔피언 이름")
-    @app_commands.describe(cooldown_reduction="스킬가속")
-    @app_commands.describe(enemy_champion="상대 챔피언 이름 (선택사항)")
-    @app_commands.describe(enemy_cooldown_reduction="상대 스킬가속 (선택사항)")
-    async def cdr_cal(self, interaction: discord.interactions, champion:str, cooldown_reduction:int,
-                        enemy_champion:Optional[str]=None, enemy_cooldown_reduction:Optional[int]=None):
-        
+    @app_commands.describe(챔피언="챔피언 이름")
+    @app_commands.describe(스킬가속="스킬가속")
+    @app_commands.describe(상대챔피언="상대 챔피언 이름 (선택사항)")
+    @app_commands.describe(상대스킬가속="상대 스킬가속 (선택사항)")
+    @app_commands.describe(공개여부="공개 여부 (기본값: 공개)")
+    @app_commands.choices(
+        공개여부=[
+            app_commands.Choice(name="공개", value=1),
+            app_commands.Choice(name="비공개", value=0)
+        ]
+    )
+    async def cdr_cal(self, interaction: discord.Interaction, 챔피언:str, 스킬가속:int,
+                        상대챔피언:Optional[str]=None, 상대스킬가속:Optional[int]=None,
+                        공개여부: int = 1):
+        공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
         enemy_flag = False
-        champion = self.CHAM_ABBR_MAP.get(champion, champion)
+        champion = self.CHAM_ABBR_MAP.get(챔피언, 챔피언)
+        cooldown_reduction = 스킬가속
+        enemy_cooldown_reduction = 상대스킬가속
         if enemy_champion:
-            enemy_champion = self.CHAM_ABBR_MAP.get(enemy_champion, enemy_champion)
+            enemy_champion = self.CHAM_ABBR_MAP.get(상대챔피언, 상대챔피언)
             enemy_flag = True
             if enemy_cooldown_reduction is None: # 스킬가속 입력 X 시
                 await interaction.response.send_message("스킬가속을 입력해주세요!", ephemeral=True)
@@ -513,7 +549,7 @@ class RiotCog(commands.Cog):
             embed.add_field(name=f"{discord.utils.get(self.riot_emoji, name=enemy_champion_id)} {enemy_champion}", value=enemy_text, inline=True)
         
         embed.set_footer(text=f"Riot Games 제공")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=공개여부)
 
 async def setup(bot):
     await bot.add_cog(RiotCog(bot))

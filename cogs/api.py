@@ -37,18 +37,26 @@ class ApiCog(commands.Cog):
             else:
                 print(f"🔴 {api_name[i]} | Status: {status} (인증 실패 또는 잘못된 요청)")
 
+#########################################################################################################
+
     @app_commands.command(name="날씨", description="해당 지역에 대한 날씨 정보를 알려줍니다 ( 한국, 시 한정 )") # 날씨 201206 / 211228 / 230621 / 260617
-    @app_commands.describe(city="지역 이름 (서울)")
-    async def weather(self, interaction: discord.interactions, city:str):
-        api_url = f'http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=5&appid={OPENWEATHERMAP_API}' # 동일 이름 최대 5개 서치 (Direct geocoding )
+    @app_commands.describe(지역="지역 이름 (서울)")
+    @app_commands.describe(공개여부="공개 여부를 선택합니다 (기본값 : 공개)")
+    @app_commands.choices(공개여부=[
+        app_commands.Choice(name="공개", value=1),
+        app_commands.Choice(name="비공개", value=0)
+    ])
+    async def weather(self, interaction: discord.Interaction, 지역:str, 공개여부: int = 1):
+        api_url = f'http://api.openweathermap.org/geo/1.0/direct?q={지역}&limit=5&appid={OPENWEATHERMAP_API}' # 동일 이름 최대 5개 서치 (Direct geocoding )
         api_data = await get_json(api_url)
         location = {}
+        공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
         for x in api_data:
             if x['country'] == 'KR':
                 api_url = f"https://api.openweathermap.org/data/2.5/weather?lat={x['lat']}&lon={x['lon']}&appid={OPENWEATHERMAP_API}" # 날씨 정보 ( current weather data )
                 weather_data = await get_json(api_url)
 
-                location['city'] = f"{city}" # 지역
+                location['city'] = f"{지역}" # 지역
                 location['lat'] = x['lat'] # 위도
                 location['lon'] = x['lon'] # 경도
                 location['temp'] = weather_data['main']['temp'] - 273.15 # 현재 온도
@@ -87,13 +95,13 @@ class ApiCog(commands.Cog):
         # 하단 푸터 (좌표 및 출처 표시)
         embed.set_footer(text=f"위도: {location['lat']} | 경도: {location['lon']}     •     OpenWeatherMap 제공")
         
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=공개여부)
 
 #########################################################################################################
 
     @app_commands.command(name="환율", description="환율을 알려줍니다! 기본 [ 한국 | 1000원 ]") # 환율 221025 / 260617
     @app_commands.choices(
-        country=[
+        나라=[
             app_commands.Choice(name="🇰🇷 대한민국 원", value="KRW",),
             app_commands.Choice(name="🇨🇳 중국 위안", value="CNY"),
             app_commands.Choice(name="🇯🇵 일본 엔", value="JPY"),
@@ -106,7 +114,12 @@ class ApiCog(commands.Cog):
         ] 
     )
     @app_commands.describe(price ="가격 입력")
-    async def weather(self, interaction: discord.interactions, country: str= 'KRW', price: int= 1000):
+    @app_commands.describe(공개여부="공개 여부를 선택합니다 (기본값 : 공개)")
+    @app_commands.choices(공개여부=[
+        app_commands.Choice(name="공개", value=1),
+        app_commands.Choice(name="비공개", value=0)
+    ])
+    async def exchange(self, interaction: discord.Interaction, 나라: str= 'KRW', price: int= 1000, 공개여부: int = 1):
         COUNTRY_MAP = {
             "KRW": "🇰🇷 대한민국 원 (KRW)",
             "CNY": "🇨🇳 중국 위안 (CNY)",
@@ -123,8 +136,9 @@ class ApiCog(commands.Cog):
             "KRW": 1.0, "USD": 1350.0, "JPY": 9.0, "EUR": 1450.0,
             "CNY": 185.0, "GBP": 1700.0, "INR": 16.0, "RUB": 15.0, "PHP": 24.0
         }
+        공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
                 
-        api_url=f'https://v6.exchangerate-api.com/v6/{EXCHANGERATE_API}/latest/{country}'
+        api_url=f'https://v6.exchangerate-api.com/v6/{EXCHANGERATE_API}/latest/{나라}'
         api_data = await get_json(api_url)
 
         for cty in COUNTRY_MAP.keys():
@@ -138,18 +152,24 @@ class ApiCog(commands.Cog):
             embed.add_field(name=COUNTRY_MAP[key], value=f"{value:.2f}")
 
         embed.set_footer(text=f"UTC 기준 {api_data['time_last_update_utc']}     •     Exchangerate 제공")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=공개여부)
 
 #########################################################################################################
 
     @app_commands.command(name="사전", description="단어에 대한 사전적 용어를 알려줍니다") # 사전 201105 / 260618
-    @app_commands.describe(word="단어 입력")
-    async def word_dictonary(self, interaction: discord.interactions, word:str):
-        api_url=f'https://kli.korean.go.kr/term/api/search.do?key={ON_WORD_API}&apiSearchWord={word}&sort=wt&start=1&num=5'
+    @app_commands.describe(단어="단어 입력")
+    @app_commands.describe(공개여부="공개 여부를 선택합니다 (기본값 : 공개)")
+    @app_commands.choices(공개여부=[
+        app_commands.Choice(name="공개", value=1),
+        app_commands.Choice(name="비공개", value=0)
+    ])
+    async def word_dictonary(self, interaction: discord.Interaction, 단어:str, 공개여부: int = 1):
+        api_url=f'https://kli.korean.go.kr/term/api/search.do?key={ON_WORD_API}&apiSearchWord={단어}&sort=wt&start=1&num=5'
         api_data = await get_json(api_url)
+        공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
 
         if api_data['channel'].get('returnCode') == "1":
-            await interaction.response.send_message(api_data['channel']['return_object'], ephemeral=True)
+            await interaction.response.send_message(api_data['channel']['return_object'], ephemeral=공개여부)
             return
 
         word_data = {}
@@ -191,22 +211,28 @@ class ApiCog(commands.Cog):
         embed.set_footer(text=f"{api_data['channel']['title']} 제공")
 
         # 메시지 전송
-        await interaction.response.send_message(embed=embed, ephemeral = True)
+        await interaction.response.send_message(embed=embed, ephemeral = 공개여부)
 
 #########################################################################################################
 
     @app_commands.command(name="가사", description="노래에 대한 가사를 알려줍니다.") # 가사 201203 / 260623
-    @app_commands.describe(song="노래 제목")
-    @app_commands.describe(artist="가수 (선택사항)")
-    async def search_lyric(self, interaction: discord.interactions, song:str, artist:Optional[str] = None):
-        await interaction.response.defer(ephemeral=True)
+    @app_commands.describe(노래="노래 제목")
+    @app_commands.describe(가수="가수 (선택사항)")
+    @app_commands.describe(공개여부="공개 여부를 선택합니다 (기본값 : 공개)")
+    @app_commands.choices(공개여부=[
+        app_commands.Choice(name="공개", value=1),
+        app_commands.Choice(name="비공개", value=0)
+    ])
+    async def search_lyric(self, interaction: discord.Interaction, 노래:str, 가수:Optional[str] = None, 공개여부: int = 1):
+        공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
+        await interaction.response.defer(ephemeral=공개여부)
         genius = lyricsgenius.Genius(GENIUS_API, skip_non_songs=True)
-        
-        data = genius.search_song(song, artist=artist)
+
+        data = genius.search_song(노래, artist=가수)
         
         if not data:
             await interaction.followup.send(
-                f"❌ **'{song}'** (아티스트: {artist or '미지정'})에 대한 가사를 찾을 수 없습니다.", 
+                f"❌ **'{노래}'** (아티스트: {가수 or '미지정'})에 대한 가사를 찾을 수 없습니다.", 
                 ephemeral=True
             )
             return
@@ -243,14 +269,14 @@ class ApiCog(commands.Cog):
         
         if len(lyrics) <= max_length:
             embed.add_field(name="🎤 가사", value=f"```txt\n{lyrics}\n```", inline=False)
-            await interaction.followup.send(embed=embed, ephemeral = True)
+            await interaction.followup.send(embed=embed, ephemeral = 공개여부)
         else:
             # 가사가 길면 900자 단위로 쪼갬
             lyrics_chunks = [lyrics[i:i+max_length] for i in range(0, len(lyrics), max_length)]
             
             # 첫 번째 파트는 원래 interaction 응답으로 전송
             embed.add_field(name="🎤 가사 (1/n)", value=f"```txt\n{lyrics_chunks[0]}\n```", inline=False)
-            await interaction.followup.send(embed=embed, ephemeral = True)
+            await interaction.followup.send(embed=embed, ephemeral = 공개여부)
             
             # 두 번째 파트부터는 followup 기능을 이용해 순차적으로 전송
             for idx, chunk in enumerate(lyrics_chunks[1:], start=2):
@@ -260,7 +286,7 @@ class ApiCog(commands.Cog):
                     value=f"```txt\n{chunk}\n```", 
                     inline=False
                 )
-                await interaction.followup.send(embed=next_embed, ephemeral = True)
+                await interaction.followup.send(embed=next_embed, ephemeral = 공개여부)
 
 #########################################################################################################
 
