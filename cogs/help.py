@@ -76,7 +76,20 @@ class HelpCog(commands.Cog):
             "스킬가속": {
                 "usage": "/스킬가속 champion:아리 cooldown_reduction:50",
                 "desc": "스킬 가속 적용 후 쿨타임을 계산합니다."
+            },
+            "로아공지": {
+                "usage": "/로아공지",
+                "desc": "로스트아크 최신 공지, 점검, 상점, 이벤트 정보를 요약하여 확인합니다."
+            },
+            "로아이벤트": {
+                "usage": "/로아이벤트 champion:아리 cooldown_reduction:50",
+                "desc": "로스트아크 이벤트 정보를 요약하여 확인합니다."
+            },
+            "로아캐릭터": {
+                "usage": "/로아캐릭터 nickname:메루미나",
+                "desc": "로스트아크 캐릭터 정보를 요약하여 확인합니다."
             }
+
         }
     
     async def cog_load(self):
