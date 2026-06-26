@@ -2,6 +2,7 @@ import discord, asyncio
 from discord.ext import commands
 from discord import app_commands
 from datetime import datetime, timedelta
+import json
 
 from utils.embed_builder import build_simple_embed
 from config.settings import LOSTARK_API
@@ -180,9 +181,9 @@ class LostarkCog(commands.Cog):
         app_commands.Choice(name="공개", value=1),
         app_commands.Choice(name="비공개", value=0)
     ])
-    async def test(self, interaction: discord.Interaction, 닉네임: str, 공개여부: int = 1):
-        await interaction.response.defer(ephemeral=True)
+    async def lostark_character(self, interaction: discord.Interaction, 닉네임: str, 공개여부: int = 1):
         공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
+        await interaction.response.defer(ephemeral=공개여부)
         
         loawa_url = f"https://loawa.com/char/{닉네임}"
         api_url = f"https://developer-lostark.game.onstove.com/armories/characters/{닉네임}"
@@ -190,17 +191,17 @@ class LostarkCog(commands.Cog):
 
         # 1. API 에러 및 존재하지 않는 캐릭터 처리
         if api_response.text == "null" or not api_response.text:
-            await interaction.followup.send(f"❌ **{닉네임}** - 존재하지 않거나 검색할 수 없는 닉네임입니다.", ephemeral=True)
+            await interaction.followup.send(f"❌ **{닉네임}** - 존재하지 않거나 검색할 수 없는 닉네임입니다.")
             return
         elif api_response.status_code != 200:
-            await interaction.followup.send("⚠️ 로스트아크 API 서버와 통신 중 에러가 발생했습니다.", ephemeral=True)
+            await interaction.followup.send("⚠️ 로스트아크 API 서버와 통신 중 에러가 발생했습니다.")
             return
         
         api_data = api_response.json()
         profile = api_data.get("ArmoryProfile")
 
         if not profile:
-            await interaction.followup.send("❌ 캐릭터 프로필 정보를 불러올 수 없습니다.", ephemeral=True)
+            await interaction.followup.send("❌ 캐릭터 프로필 정보를 불러올 수 없습니다.")
             return
 
         # 추가 정보 추출 (클래스)
@@ -263,7 +264,101 @@ class LostarkCog(commands.Cog):
 
         embed.set_footer(text="LostArk Open API", icon_url=interaction.user.display_avatar.url)
         
-        await interaction.followup.send(embed=embed, ephemeral=공개여부)
+        await interaction.followup.send(embed=embed, ephemeral=공개여부, view=chaBtn(interaction=interaction, data=api_data, nickname=닉네임))
+
+class chaBtn(discord.ui.View):
+    def __init__(self, interaction: discord.Interaction | discord.Member, data:json, nickname:str):
+        super().__init__(timeout=10)
+        self.interaction = interaction
+        self.data = data
+        self.nickname = nickname
+        self.profile = data.get("ArmoryProfile")
+        self.embed = build_simple_embed(
+                title=f"👑 {self.nickname} ({self.profile['CharacterClassName']})",
+                description=f"**서버:** {self.profile['ServerName']} | **길드:** {self.profile['GuildName']}"
+            )
+        self.embed.set_footer(text="LostArk Open API", icon_url=interaction.user.display_avatar.url)
+        self.embed.url=f"https://loawa.com/char/{self.nickname}"
+
+        if self.profile.get("CharacterImage"):
+            self.embed.set_thumbnail(url=self.profile["CharacterImage"])
+    
+    async def on_timeout(self):
+        # 1. view에 속한 모든 버튼을 반복문으로 돌며 비활성화(disabled)시킵니다.
+        for item in self.children:
+            if isinstance(item, discord.ui.Button):
+                item.disabled = True
+
+    @discord.ui.button(label="스킬", style=discord.ButtonStyle.success)
+    async def skill_btn(self, interaction : discord.Interaction, btn : discord.ui.Button):
+        RUNE_EMOJI = {
+            "고급": "🟢",
+            "희귀": "🔵",
+            "영웅": "🟣",
+            "전설": "🟠"
+        }
+        idx = 0
+        if interaction.user.id == self.interaction.user.id:
+            for skill in self.data['ArmorySkills']:
+                if skill['Level'] == 1: continue
+
+                tripod_text = ""
+
+                for tripod in skill['Tripods']:
+                    if not tripod['IsSelected']: continue
+                    tripod_text += f"> {tripod['Slot']} {tripod['Name']}\n"
+
+                # 룬
+                rune_text = ""
+
+                if skill.get("Rune"):
+                    rune = skill["Rune"]
+                    rune_text = (
+                        f"{RUNE_EMOJI.get(rune['Grade'],'✨')} "
+                        f"**{rune['Grade']} {rune['Name']}**\n"
+                    )
+
+                value = (
+                    f"{rune_text}"
+                    f"{tripod_text}"
+                )
+
+                self.embed.add_field(
+                    name=f"⚔️ {skill['Name']}  (Lv.{skill['Level']})",
+                    value=value
+                )
+                idx+=1
+                if idx == 2:
+                    self.embed.add_field(name='', value='')
+                    idx=0
+
+            
+            await interaction.response.edit_message(embed=self.embed, view=None)
+        
+    @discord.ui.button(label="수집", style=discord.ButtonStyle.success)
+    async def collect_btn(self, interaction : discord.Interaction, btn : discord.ui.Button):
+        COLLECT_EMOJI = {
+            "모코코 씨앗": "🌱",
+            "섬의 마음": "🏝️",
+            "위대한 미술품": "🖼️",
+            "거인의 심장": "❤️",
+            "이그네아의 징표": "🍃",
+            "항해 모험물": "🚢",
+            "세계수의 잎": "🌳",
+            "오르페우스의 별": "⭐",
+            "기억의 오르골": "🎵",
+            "크림스네일의 해도": "🗺️",
+            "누크만의 환영석": "💎",
+        }
+
+        for collectible in self.data["Collectibles"]:
+            icon = COLLECT_EMOJI.get(collectible["Type"], "📌")
+            self.embed.add_field(
+                name=f"{icon} {collectible['Type']}",
+                value=f"`{collectible['Point']} / {collectible['MaxPoint']}`",
+                inline=True
+            )
+        await interaction.response.edit_message(embed=self.embed, view=None)
 
 #########################################################################################################
 

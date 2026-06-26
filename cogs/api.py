@@ -280,7 +280,7 @@ class ApiCog(commands.Cog):
             
             # 두 번째 파트부터는 followup 기능을 이용해 순차적으로 전송
             for idx, chunk in enumerate(lyrics_chunks[1:], start=2):
-                next_embed = discord.Embed(color=0xFFEB3B)
+                next_embed = build_simple_embed()
                 next_embed.add_field(
                     name=f"🎤 가사 이어보기 ({idx}/{len(lyrics_chunks)})", 
                     value=f"```txt\n{chunk}\n```", 
