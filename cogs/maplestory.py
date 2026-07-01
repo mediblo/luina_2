@@ -30,7 +30,7 @@ class MapleCog(commands.Cog):
 
 #########################################################################################################
 
-    @app_commands.command(name="메이플_등록", description="해당 닉네임을 등록합니다.") # 메이플_등록
+    @app_commands.command(name="메이플_등록", description="해당 닉네임을 등록합니다.") # 메이플_등록 260701
     @app_commands.describe(닉네임="닉네임 (필수)")
     async def maple_add(self, interaction: discord.Interaction, 닉네임:str):
         if interaction.guild.id not in [1307325561890406452, 736512667530821653]:
@@ -59,7 +59,7 @@ class MapleCog(commands.Cog):
 
 #########################################################################################################
 
-    @app_commands.command(name="메이플_랭킹", description="등록된 닉네임들의 랭킹을 조회합니다.") # 메이플_랭킹
+    @app_commands.command(name="메이플_랭킹", description="등록된 닉네임들의 랭킹을 조회합니다.") # 메이플_랭킹 260701
     async def maple_ranking(self, interaction: discord.Interaction):
         if interaction.guild.id not in [1307325561890406452, 736512667530821653]:
             await interaction.response.send_message('개발중인 명령어 입니다.', ephemeral=True)
@@ -134,7 +134,6 @@ class MapleCog(commands.Cog):
 
         # 4. 유저에게 최종 임베드 전송
         await interaction.followup.send(embed=embed)
-
 
 async def setup(bot):
     await bot.add_cog(MapleCog(bot))
