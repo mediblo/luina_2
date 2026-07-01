@@ -135,5 +135,89 @@ class MapleCog(commands.Cog):
         # 4. 유저에게 최종 임베드 전송
         await interaction.followup.send(embed=embed)
 
+#########################################################################################################
+
+    @app_commands.command(name="메이플_조회", description="해당 닉네임의 정보를 조회합니다.") # 메이플_조회 260701
+    @app_commands.describe(닉네임="닉네임 (필수)")
+    @app_commands.describe(공개여부="공개 여부를 선택합니다 (기본값 : 공개)")
+    @app_commands.choices(공개여부=[
+        app_commands.Choice(name="공개", value=1),
+        app_commands.Choice(name="비공개", value=0)
+    ])
+    async def maple_search(self, interaction: discord.Interaction, 닉네임:str, 공개여부: int = 1):
+        공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
+
+        await interaction.response.defer(ephemeral=공개여부)
+
+        if (ocid:= self.user_nickname.get('닉네임')) is None:
+
+            data_url = f'https://open.api.nexon.com/maplestory/v1/id?character_name={닉네임}'
+            
+            api_data:dict = await get_json(url=data_url, headers=self.headers)
+            
+            if api_data.get('ocid') is None: # 없는 이름
+                await interaction.followup.send('없는 닉네임')
+                return
+
+            ocid = api_data['ocid']
+
+        api_url = f'https://open.api.nexon.com/maplestory/v1/character/basic?ocid={ocid}'
+        api_data:dict = await get_json(url=data_url, headers=self.headers)
+
+        # 데이터 추출
+        name = api_data.get("character_name", "알 수 없음")
+        world = api_data.get("world_name", "알 수 없음")
+        job = api_data.get("character_class", "알 수 없음")
+        level = api_data.get("character_level", 0)
+        exp_rate = float(api_data.get("character_exp_rate", "0.0"))
+        guild = api_data.get("character_guild_name") or "없음"
+        gender = api_data.get("character_gender", "-")
+        image_url = api_data.get("character_image")
+        
+        # 해방 퀘스트 완료 여부 텍스트 변환
+        is_liberated = "완료" if api_data.get("liberation_quest_clear") == "1" else "미완료"
+
+        # 간단한 경험치 바 제작 (■: 채워짐, □: 비어있음)
+        # 15.717% 면 약 1.5칸 채워짐
+        filled_blocks = int(exp_rate // 10)
+        empty_blocks = 10 - filled_blocks
+        exp_bar = "■" * filled_blocks + "□" * empty_blocks
+
+        # 1. 임베드 기본 설정 (제목, 설명, 색상)
+        embed = build_simple_embed(
+            title=f"🍁 {name} (Lv.{level})",
+            description=f"**{world} 월드**의 {job} 정보입니다."
+        )
+
+        # 2. 캐릭터 외형 이미지 설정 (우측 대형 이미지 또는 중앙 하단)
+        if image_url:
+            embed.set_image(url=image_url) # 하단에 크게 노출 (코디 확인용으로 추천)
+            # 만약 우측 상단에 작게 넣고 싶다면 embed.set_thumbnail(url=image_url) 사용
+
+        # 3. 상세 정보 필드 추가 (inline=True를 주면 가로로 배치됩니다)
+        embed.add_field(name="직업", value=job, inline=True)
+        embed.add_field(name="성별", value=gender, inline=True)
+        embed.add_field(name="길드", value=guild, inline=True)
+        
+        # 경험치 정보 (줄바꿈을 위해 inline=False)
+        embed.add_field(
+            name=f"경험치 ({exp_rate}%)", 
+            value=f"`{exp_bar}`", 
+            inline=False
+        )
+        
+        embed.add_field(name="제네시스 해방", value=is_liberated, inline=True)
+        
+        # 생성일 처리 (ISO 포맷 문자열에서 날짜만 추출: '2026-06-18')
+        create_date = api_data.get("character_date_create", "")
+        if create_date:
+            create_date = create_date.split("T")[0]
+        embed.add_field(name="캐릭터 생성일", value=create_date, inline=True)
+
+        # 4. 푸터(Footer) 설정
+        embed.set_footer(text="Nexon Open API | MapleStory")
+
+        return embed
+        
 async def setup(bot):
     await bot.add_cog(MapleCog(bot))

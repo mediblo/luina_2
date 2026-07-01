@@ -256,7 +256,8 @@ class General(commands.Cog):
                     주제7: Optional[str] = None, 주제8: Optional[str] = None, 주제9: Optional[str] = None,
                     주제10: Optional[str] = None, 공개여부: int = 1):
         
-        await interaction.response.defer(ephemeral=False)
+        공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
+        await interaction.response.defer(ephemeral=공개여부)
         await asyncio.sleep(1.5)
 
         topics = [val for key, val in locals().items() if "주제" in key and val is not None]
