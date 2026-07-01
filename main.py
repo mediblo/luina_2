@@ -69,7 +69,7 @@ class Luina(commands.Bot):
                 print(f"코그 로드 완료: cogs.{filename[:-3]}")
 
         guild_obj = discord.Object(id=TEST_GUILD_ID)
-        self.tree.clear_commands(guild=guild_obj)
+        # self.tree.clear_commands(guild=guild_obj)
         # self.tree.copy_global_to(guild=guild_obj)
         # synced = await self.tree.sync(guild=guild_obj)
         synced = await self.tree.sync()
