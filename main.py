@@ -2,7 +2,7 @@ import discord # 디스코드
 from discord.ext import commands
 import os # 파일
 from config.settings import BOT_TOKEN, TEST_GUILD_ID # 설정값
-from datetime import datetime # 시간
+from datetime import datetime, timezone, timedelta # 시간
 import base64
 import re
 
@@ -11,7 +11,8 @@ intents = discord.Intents.all() # 모든 권한
 class Luina(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix='!', intents=intents, description="Test Luina") # 명령어 접두사 설정, 권한 설정
-        self.start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-4]
+        KST = timezone(timedelta(hours=9))
+        self.start_time = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S.%f")[:-4]
 
     async def on_ready(self):
         print(f"로그인 완료: {self.user} ({self.start_time})")
@@ -67,10 +68,11 @@ class Luina(commands.Bot):
                 await self.load_extension(f'cogs.{filename[:-3]}') # 확장자를 제외한 파일 이름으로 cogs를 불러옴
                 print(f"코그 로드 완료: cogs.{filename[:-3]}")
 
-        # guild_obj = discord.Object(id=TEST_GUILD_ID)
-        # self.tree.copy_global_to(guild=guild_obj)
-        # synced = await self.tree.sync(guild=guild_obj)
-        synced = await self.tree.sync()
+        guild_obj = discord.Object(id=TEST_GUILD_ID)
+        self.tree.clear_commands(guild=guild_obj)
+        self.tree.copy_global_to(guild=guild_obj)
+        synced = await self.tree.sync(guild=guild_obj)
+        # synced = await self.tree.sync()
 
         print(f"동기화된 커맨드 수: {len(synced)}")
         print(f"동기화된 커맨드 목록: {[cmd.name for cmd in synced]}")

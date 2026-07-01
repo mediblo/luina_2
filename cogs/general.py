@@ -26,7 +26,7 @@ class General(commands.Cog):
         embed.add_field(name= "탄생일", value= "2020년 7월 26일")
         embed.add_field(name= "V2.0", value= "2026년 6월 15일", inline=False)
         embed.add_field(name= "제작자 이메일", value= "jjssog@naver.com\n-# 이메일은 자주 확인을 하지 않습니다.", inline=False)
-        embed.add_field(name= "프로필 사진 출처", value= "None", inline=False)
+        embed.add_field(name= "프로필 사진 출처", value= "라스트오리진 아르망 추기경", inline=False)
         embed.add_field(name= "블로그 URL", value= "https://blog.naver.com/jjssog")
         embed.add_field(name= "Velog URL", value= "https://velog.io/@mediblo/posts")
         embed.set_footer(text= "오류나 건의사항은 제보해주시기 바랍니다")

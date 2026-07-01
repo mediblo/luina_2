@@ -1,7 +1,7 @@
 import discord, asyncio
 from discord.ext import commands
 from discord import app_commands
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 
 from utils.embed_builder import build_simple_embed
@@ -51,7 +51,7 @@ class LostarkCog(commands.Cog):
 
 #########################################################################################################
 
-    @app_commands.command(name="로아공지", description="로스트아크 최신 공지, 점검, 상점, 이벤트 정보를 요약하여 확인합니다.") # 공지 260624
+    @app_commands.command(name="로아_공지", description="로스트아크 최신 공지, 점검, 상점, 이벤트 정보를 요약하여 확인합니다.") # 공지 260624
     async def lostark_notices(self, interaction: discord.Interaction):
         categories = {
             "공지": {"lists": [], "max": 5, "emoji": "📢"},
@@ -94,7 +94,7 @@ class LostarkCog(commands.Cog):
 
 #########################################################################################################
 
-    @app_commands.command(name="로아이벤트", description="로스트아크 이벤트 정보를 요약하여 확인합니다.") # 이벤트 231101 / 260625
+    @app_commands.command(name="로아_이벤트", description="로스트아크 이벤트 정보를 요약하여 확인합니다.") # 이벤트 231101 / 260625
     async def lostark_events(self, interaction: discord.Interaction):
         def parse_end_date(date_str):
             """ISO 8601 날짜를 datetime 객체로 변환"""
@@ -110,7 +110,8 @@ class LostarkCog(commands.Cog):
         
         events = self.events.json()
 
-        now = datetime.now()
+        KST = timezone(timedelta(hours=9))
+        now = datetime.now(KST)
         seven_days_later = now + timedelta(days=7)
         
         ending_soon = []
@@ -174,7 +175,7 @@ class LostarkCog(commands.Cog):
 
 #########################################################################################################
 
-    @app_commands.command(name="로아캐릭터", description="로스트아크 캐릭터 정보를 요약하여 확인합니다.") # 캐릭터 231101 / 버튼 추가 231106 / 궁극기 삭제 241120 / 260625
+    @app_commands.command(name="로아_캐릭터", description="로스트아크 캐릭터 정보를 요약하여 확인합니다.") # 캐릭터 231101 / 버튼 추가 231106 / 궁극기 삭제 241120 / 260625
     @app_commands.describe(닉네임="닉네임")
     @app_commands.describe(공개여부="공개 여부 (기본값: 공개)")
     @app_commands.choices(공개여부=[
