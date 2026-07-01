@@ -370,6 +370,8 @@ class RiotCog(commands.Cog):
 
         champion = self.CHAM_ABBR_MAP.get(챔피언, 챔피언)
 
+        await interaction.response.defer(ephemeral=공개여부)
+
         game_ver_url = "https://ddragon.leagueoflegends.com/api/versions.json"
         game_ver = (await get_json(game_ver_url))[0]
 
@@ -381,6 +383,10 @@ class RiotCog(commands.Cog):
             if str(champion) == val['name']:
                 champion_id = val['id']
                 break
+
+        if not champion_id: # 오타, 없는 챔피언
+            await interaction.followup.send("해당하는 챔피언의 정보가 없습니다!")
+            return
 
         champion_data_url = f"https://ddragon.leagueoflegends.com/cdn/{game_ver}/data/ko_KR/champion/{champion_id}.json"
         champion_data = await get_json(champion_data_url)
@@ -446,7 +452,7 @@ class RiotCog(commands.Cog):
         embed.set_footer(text=f"OP.GG로 이동  •  Riot Games 제공")
         
         view=chamBtn(interaction=interaction, champion=champion, data=champion_data, game_ver=game_ver, id=champion_id, riot_emoji=self.riot_emoji)
-        await interaction.response.send_message(embed=embed, ephemeral=공개여부, view=view)
+        await interaction.followup.send(embed=embed, view=view)
 
 #########################################################################################################
 
@@ -470,12 +476,14 @@ class RiotCog(commands.Cog):
         champion = self.CHAM_ABBR_MAP.get(챔피언, 챔피언)
         cooldown_reduction = 스킬가속
         enemy_cooldown_reduction = 상대스킬가속
-        if enemy_champion:
+        if 상대챔피언:
             enemy_champion = self.CHAM_ABBR_MAP.get(상대챔피언, 상대챔피언)
             enemy_flag = True
             if enemy_cooldown_reduction is None: # 스킬가속 입력 X 시
                 await interaction.response.send_message("스킬가속을 입력해주세요!", ephemeral=True)
                 return
+
+        await interaction.response.defer(ephemeral=공개여부)
                         
         game_ver_url = "https://ddragon.leagueoflegends.com/api/versions.json"
         game_ver = (await get_json(game_ver_url))[0]
@@ -490,7 +498,7 @@ class RiotCog(commands.Cog):
                 break
 
         if not champion_id: # 오타, 없는 챔피언
-            await interaction.response.send_message("해당하는 챔피언의 정보가 없습니다!", ephemeral=True)
+            await interaction.followup.send("해당하는 챔피언의 정보가 없습니다!")
             return
         
         enemy_champion_id =""
@@ -501,7 +509,7 @@ class RiotCog(commands.Cog):
                     break
 
             if not enemy_champion_id: # 오타, 없는 챔피언
-                await interaction.response.send_message("해당하는 상대 챔피언의 정보가 없습니다!", ephemeral=True)
+                await interaction.followup.send("해당하는 상대 챔피언의 정보가 없습니다!")
                 return
 
         embed = build_simple_embed(
@@ -549,7 +557,7 @@ class RiotCog(commands.Cog):
             embed.add_field(name=f"{discord.utils.get(self.riot_emoji, name=enemy_champion_id)} {enemy_champion}", value=enemy_text, inline=True)
         
         embed.set_footer(text=f"Riot Games 제공")
-        await interaction.response.send_message(embed=embed, ephemeral=공개여부)
+        await interaction.followup.send(embed=embed)
 
 #########################################################################################################
 

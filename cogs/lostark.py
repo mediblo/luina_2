@@ -97,14 +97,13 @@ class LostarkCog(commands.Cog):
     @app_commands.command(name="로아_이벤트", description="로스트아크 이벤트 정보를 요약하여 확인합니다.") # 이벤트 231101 / 260625
     async def lostark_events(self, interaction: discord.Interaction):
         def parse_end_date(date_str):
-            """ISO 8601 날짜를 datetime 객체로 변환"""
             if not date_str:
                 return None
             try:
-                if '.' in date_str:
-                    return datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S.%f")
-                else:
-                    return datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S")
+                dt = datetime.fromisoformat(date_str)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone(timedelta(hours=9)))
+                    return dt
             except Exception:
                 return None
         
@@ -351,15 +350,15 @@ class chaBtn(discord.ui.View):
             "크림스네일의 해도": "🗺️",
             "누크만의 환영석": "💎",
         }
-
-        for collectible in self.data["Collectibles"]:
-            icon = COLLECT_EMOJI.get(collectible["Type"], "📌")
-            self.embed.add_field(
-                name=f"{icon} {collectible['Type']}",
-                value=f"`{collectible['Point']} / {collectible['MaxPoint']}`",
-                inline=True
-            )
-        await interaction.response.edit_message(embed=self.embed, view=None)
+        if interaction.user.id == self.interaction.user.id:
+            for collectible in self.data["Collectibles"]:
+                icon = COLLECT_EMOJI.get(collectible["Type"], "📌")
+                self.embed.add_field(
+                    name=f"{icon} {collectible['Type']}",
+                    value=f"`{collectible['Point']} / {collectible['MaxPoint']}`",
+                    inline=True
+                )
+            await interaction.response.edit_message(embed=self.embed, view=None)
 
 #########################################################################################################
 

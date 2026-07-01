@@ -166,7 +166,7 @@ class General(commands.Cog):
         )
 
         embed_result.add_field(name="UTC 기준", value= f"{utc:02d}:{min:02d}:{sec:02d}", inline= False)
-        embed_result.add_field(name="UTC 기준", value= f"{hour:02d}:{min:02d}:{sec:02d}", inline= False)
+        embed_result.add_field(name="KST 기준", value= f"{hour:02d}:{min:02d}:{sec:02d}", inline= False)
     
         공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
         await interaction.response.send_message(embed=embed_result, ephemeral=공개여부)
@@ -190,7 +190,7 @@ class General(commands.Cog):
     async def RSP(self, interaction: discord.Interaction, 플레이어: app_commands.Choice[str], 공개여부: int = 0):
         rsp_url={"scissors" : "https://i.imgur.com/Y7MOdGP.jpg", "rock" : "https://i.imgur.com/acrBIVe.jpg", "paper" : "https://i.imgur.com/II1ClVF.jpg"} # 가 바 보
         computer=random.choice(["scissors","rock","paper"])
-        player=플레이어
+        player=플레이어.value
 
         embed_result = build_simple_embed(
             title="가위바위보",
@@ -279,23 +279,24 @@ class General(commands.Cog):
     @app_commands.choices(
         모드=[
             app_commands.Choice(name="디코딩", value="Decode"),
-            app_commands.Choice(name="인코딩", value="Incode")
+            app_commands.Choice(name="인코딩", value="Encode")
         ]
     )
     @app_commands.describe(문장 ="문장 입력")
     async def b64(self, interaction: discord.Interaction, 모드: app_commands.Choice[str], 문장:str):
-        if 모드.value == "Incode":
-            data_1=문장.encode('ascii')
-            data_2=base64.b64encode(data_1)
-            p_data=data_2.decode('ascii')
+        fin_data = ""
+        if 모드.value == "Encode":
+            fin_data = base64.b64encode(문장.encode('utf-8')).decode('utf-8')
         elif 모드.value == "Decode":
-            data_1=base64.b64decode(문장)
-            p_data=data_1.decode('ascii')
+            fin_data = base64.b64decode(문장).decode('utf-8')
 
         embed=build_simple_embed(
                     title="B64",
-                    description=모드
+                    description=모드.value
                 )
+        
+        embed.add_field(name="결과", value=fin_data)
+
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 #########################################################################################################
@@ -344,6 +345,18 @@ class General(commands.Cog):
         else:
             # ephemral=True를 쓰면 delete_after 없이 그 사용자에게만 보이고 나중에 사라집니다!
             await interaction.response.send_message("제작자가 아닙니다.", ephemeral=True)
+
+#########################################################################################################
+
+    @app_commands.command(name="동기화", description="서버 명령어를 동기화합니다.")
+    async def 동기화(self, interaction: discord.Interaction):
+        if interaction.user.id == 442284517223301120 and interaction.guild.id == 736512667530821653: 
+            await interaction.response.defer(ephemeral=True)
+            synced = await self.bot.tree.sync()
+            await interaction.followup.send("서버 명령어 동기화 완료")
+
+            print(f"동기화된 커맨드 수: {len(synced)}")
+            print(f"동기화된 커맨드 목록: {[cmd.name for cmd in synced]}")
 
 async def setup(bot):
     await bot.add_cog(General(bot))

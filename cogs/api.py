@@ -101,7 +101,7 @@ class ApiCog(commands.Cog):
 
     @app_commands.command(name="환율", description="환율을 알려줍니다! 기본 [ 한국 | 1000원 ]") # 환율 221025 / 260617
     @app_commands.choices(
-        나라=[
+        국가=[
             app_commands.Choice(name="🇰🇷 대한민국 원", value="KRW",),
             app_commands.Choice(name="🇨🇳 중국 위안", value="CNY"),
             app_commands.Choice(name="🇯🇵 일본 엔", value="JPY"),
@@ -113,13 +113,13 @@ class ApiCog(commands.Cog):
             app_commands.Choice(name="🇵🇭 필리핀 페소", value="PHP"),
         ] 
     )
-    @app_commands.describe(price ="가격 입력")
+    @app_commands.describe(금액 ="가격 입력")
     @app_commands.describe(공개여부="공개 여부를 선택합니다 (기본값 : 공개)")
     @app_commands.choices(공개여부=[
         app_commands.Choice(name="공개", value=1),
         app_commands.Choice(name="비공개", value=0)
     ])
-    async def exchange(self, interaction: discord.Interaction, 나라: str= 'KRW', price: int= 1000, 공개여부: int = 1):
+    async def exchange(self, interaction: discord.Interaction, 국가: str= 'KRW', 금액: int= 1000, 공개여부: int = 1):
         COUNTRY_MAP = {
             "KRW": "🇰🇷 대한민국 원 (KRW)",
             "CNY": "🇨🇳 중국 위안 (CNY)",
@@ -138,11 +138,11 @@ class ApiCog(commands.Cog):
         }
         공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
                 
-        api_url=f'https://v6.exchangerate-api.com/v6/{EXCHANGERATE_API}/latest/{나라}'
+        api_url=f'https://v6.exchangerate-api.com/v6/{EXCHANGERATE_API}/latest/{국가}'
         api_data = await get_json(api_url)
 
         for cty in COUNTRY_MAP.keys():
-            EXCHANGE_RATES[cty] = api_data["conversion_rates"][cty] * price
+            EXCHANGE_RATES[cty] = api_data["conversion_rates"][cty] * 금액
 
         embed = build_simple_embed(
             title="💱 실시간 환율 정보",

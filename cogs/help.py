@@ -1,4 +1,4 @@
-import discord, asyncio
+import discord
 from discord.ext import commands
 from discord import app_commands
 from typing  import Optional
@@ -131,7 +131,7 @@ class HelpCog(commands.Cog):
 
             embed.add_field(
                 name="🎮 Lost Ark",
-                value=("`/메이플_공지 /메이플_이벤트 /메이플_캐릭터`"), inline=False)
+                value=("`/로아_공지 /로아_이벤트 /로아_캐릭터`"), inline=False)
             
             embed.add_field(
                 name="🎮 MapleStory",

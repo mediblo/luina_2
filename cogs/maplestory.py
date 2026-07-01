@@ -24,10 +24,10 @@ class MapleCog(commands.Cog):
         
     async def cog_load(self):
         if not os.path.exists(self.file_path): # 없음 만들기
-            with open(self.file_path, 'w') as json_f:
-                json.dump({}, json_f)
+            with open(self.file_path, 'w', encoding='utf-8') as json_f:
+                json.dump({}, json_f, indent=4, ensure_ascii=False)
 
-        with open(self.file_path, 'r') as json_f:
+        with open(self.file_path, 'r', encoding='utf-8') as json_f:
             self.user_nickname = json.load(json_f)
 
         notice_url = 'https://open.api.nexon.com/maplestory/v1/notice'
@@ -47,7 +47,7 @@ class MapleCog(commands.Cog):
 
         event_url = 'https://open.api.nexon.com/maplestory/v1/notice-event'
         self.events = await get_response(url=event_url, headers=self.headers)
-        status = self.notices.status_code
+        status = self.events.status_code
 
         if 200 <= status < 300:
             print(f"🟢 MapleStory_event | Status: {status} (정상 연결)")
@@ -84,8 +84,8 @@ class MapleCog(commands.Cog):
         
         self.user_nickname[닉네임] = api_data['ocid']
 
-        with open(self.file_path, 'w') as json_f:
-            json.dump(self.user_nickname, json_f)
+        with open(self.file_path, 'w', encoding='utf-8') as json_f:
+            json.dump(self.user_nickname, json_f, indent=4, ensure_ascii=False)
 
         await interaction.followup.send('등록 완료!')
 
@@ -97,6 +97,7 @@ class MapleCog(commands.Cog):
             await interaction.response.send_message('개발중인 명령어 입니다.', ephemeral=True)
             return
         
+        
         await interaction.response.defer(ephemeral=False)
         stat_url = 'https://open.api.nexon.com/maplestory/v1/character/stat?ocid='
         rank_url = f'https://open.api.nexon.com/maplestory/v1/ranking/overall?date={self.time}&world_name=%EC%B1%8C%EB%A6%B0%EC%A0%80%EC%8A%A4&ocid='
@@ -105,6 +106,8 @@ class MapleCog(commands.Cog):
         for nickname, ocid in self.user_nickname.items():
             stat_api = await get_json(url=(stat_url+ocid), headers=self.headers)
             rank_api = await get_json(url=(rank_url+ocid), headers=self.headers)
+            if not rank_api['ranking'] or not stat_api['final_stat']:
+                continue
             rank_api['ranking'][0]['power'] = stat_api['final_stat'][-2]['stat_value']
             data[rank_api['ranking'][0]['ranking']] = rank_api
             await asyncio.sleep(0.5)
@@ -181,8 +184,7 @@ class MapleCog(commands.Cog):
 
         await interaction.response.defer(ephemeral=공개여부)
 
-        if (ocid:= self.user_nickname.get('닉네임')) is None:
-
+        if (ocid:= self.user_nickname.get(닉네임)) is None:
             data_url = f'https://open.api.nexon.com/maplestory/v1/id?character_name={닉네임}'
             
             api_data:dict = await get_json(url=data_url, headers=self.headers)
@@ -306,19 +308,7 @@ class MapleCog(commands.Cog):
         app_commands.Choice(name="공개", value=1),
         app_commands.Choice(name="비공개", value=0)
     ])
-    async def maple_event(self, interaction: discord.Interaction, 공개여부: int = 1):
-        def parse_end_date(date_str):
-            """ISO 8601 날짜를 datetime 객체로 변환"""
-            if not date_str:
-                return None
-            try:
-                if '.' in date_str:
-                    return datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S.%f")
-                else:
-                    return datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S")
-            except Exception:
-                return None
-            
+    async def maple_event(self, interaction: discord.Interaction, 공개여부: int = 1):            
         공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
 
         await interaction.response.defer(ephemeral=공개여부)
@@ -369,8 +359,7 @@ class MapleCog(commands.Cog):
 
         # 6. 임베드 생성 (메이플스토리 주황색)
         embed = build_simple_embed(
-            title=f"✨ 메이플스토리 진행 중 이벤트 ({total_active_events}개)",
-            timestamp=now
+            title=f"✨ 메이플스토리 진행 중 이벤트 ({total_active_events}개)"
         )
         
         # 가장 최신 이벤트의 썸네일 이미지를 우측 상단에 표시 (선택사항)
