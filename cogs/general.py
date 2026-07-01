@@ -315,9 +315,16 @@ class General(commands.Cog):
 
 #########################################################################################################
 
+    @app_commands.command(name="초대", description="초대 링크를 출력합니다.")
+    async def 초대(self, interaction: discord.Interaction):
+        url= 'https://discord.com/oauth2/authorize?client_id=794112461741359124'
+        await interaction.response.send_message(url, ephemeral=True)
+
+#########################################################################################################
+
     @app_commands.command(name="서버리스트", description="개발자 전용 서버 목록 확인 커맨드")
     async def 서버리스트(self, interaction: discord.Interaction): # ctx -> interaction으로 변경
-        if interaction.user.id == 442284517223301120: 
+        if interaction.user.id == 442284517223301120 and interaction.guild.id == 736512667530821653: 
             guild_list = self.bot.guilds
             text = []
             

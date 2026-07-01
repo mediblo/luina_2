@@ -2,6 +2,7 @@ import discord, asyncio
 from discord.ext import commands
 from discord import app_commands
 from typing import Optional
+import json
 
 from utils.http_client import get_json, get_response
 
@@ -376,11 +377,9 @@ class RiotCog(commands.Cog):
         champion_data = await get_json(champion_data_url)
         
         champion_id = ""
-        # champion_key = ""
         for val in champion_data['data'].values():
             if str(champion) == val['name']:
                 champion_id = val['id']
-                # champion_key = val['key']
                 break
 
         champion_data_url = f"https://ddragon.leagueoflegends.com/cdn/{game_ver}/data/ko_KR/champion/{champion_id}.json"
@@ -446,7 +445,8 @@ class RiotCog(commands.Cog):
 
         embed.set_footer(text=f"OP.GG로 이동  •  Riot Games 제공")
         
-        await interaction.response.send_message(embed=embed, ephemeral=공개여부)
+        view=chamBtn(interaction=interaction, champion=champion, data=champion_data, game_ver=game_ver, id=champion_id, riot_emoji=self.riot_emoji)
+        await interaction.response.send_message(embed=embed, ephemeral=공개여부, view=view)
 
 #########################################################################################################
 
@@ -550,6 +550,86 @@ class RiotCog(commands.Cog):
         
         embed.set_footer(text=f"Riot Games 제공")
         await interaction.response.send_message(embed=embed, ephemeral=공개여부)
+
+#########################################################################################################
+
+class chamBtn(discord.ui.View):
+    def __init__(self, interaction: discord.Interaction | discord.Member, data:json, champion:str, game_ver:str, id:str, riot_emoji:list):
+        super().__init__(timeout=10)
+        self.interaction = interaction
+        self.data = data
+        self.champion = champion
+        self.game_ver = game_ver
+        self.id = id
+        self.riot_emoji = riot_emoji
+        self.embed = build_simple_embed(
+                title= self.champion,
+                description="스킬 및 능력치 상세 정보입니다."
+            )
+        thumbnail_url = f"https://ddragon.leagueoflegends.com/cdn/{game_ver}/img/champion/{id}.png"
+        self.embed.set_thumbnail(url=thumbnail_url)
+
+        champion_url = f"https://op.gg/ko/lol/champions/{id}/build"
+        self.embed.url = champion_url
+    
+    async def on_timeout(self):
+        # 1. view에 속한 모든 버튼을 반복문으로 돌며 비활성화(disabled)시킵니다.
+        for item in self.children:
+            if isinstance(item, discord.ui.Button):
+                item.disabled = True
+
+    @discord.ui.button(label="상세 정보", style=discord.ButtonStyle.success)
+    async def more_info_btn(self, interaction : discord.Interaction, btn : discord.ui.Button):
+        stats = self.data['data'][self.id]['stats']
+
+        self.embed.add_field(name="❤️ 체력 (HP)", value=f"`{stats['hp']}` (+{stats['hpperlevel']}/Lv)", inline=True)
+        self.embed.add_field(name="💧 마나 (MP)", value=f"`{stats['mp']}` (+{stats['mpperlevel']}/Lv)", inline=True)
+        self.embed.add_field(name="👟 이동 속도", value=f"`{stats['movespeed']}`", inline=True)
+
+        self.embed.add_field(name="🛡️ 방어력", value=f"`{stats['armor']}` (+{stats['armorperlevel']}/Lv)", inline=True)
+        self.embed.add_field(name="🔮 마법 저항력", value=f"`{stats['spellblock']}` (+{stats['spellblockperlevel']}/Lv)", inline=True)
+        self.embed.add_field(name="⚔️ 공격력 (AD)", value=f"`{stats['attackdamage']}` (+{stats['attackdamageperlevel']}/Lv)", inline=True)
+
+        self.embed.add_field(name="💚 체력 재생 (5초)", value=f"`{stats['hpregen']}` (+{stats['hpregenperlevel']}/Lv)", inline=True)
+        self.embed.add_field(name="💙 마나 재생 (5초)", value=f"`{stats['mpregen']}` (+{stats['mpregenperlevel']}/Lv)", inline=True)
+        self.embed.add_field(name="⚡ 공격 속도", value=f"`{stats['attackspeed']}` (+{stats['attackspeedperlevel']}%/Lv)", inline=True)
+
+        passive = self.data['data'][self.id]['passive']
+        self.embed.add_field(
+            name=f"{discord.utils.get(self.riot_emoji, name=passive['image']['full'][:-4])}   패시브 - {passive['name']}",
+            value=f"> {passive['description'].replace('<br>', '\n> ')}\n",
+            inline=False
+        )
+
+        spells = self.data['data'][self.id]['spells']
+        # 3. Q, W, E, R 스킬 정보 반복문으로 추가
+        skill_keys = ["Q", "W", "E", "R"]
+        for i, spell in enumerate(spells):
+            costBurn = spell['costType'] if spell['costType'] == '소모값 없음' else spell['costBurn']
+            if costBurn == "0":
+                costBurn = '소모값 없음'
+
+            self.embed.add_field(
+                name=f"{discord.utils.get(self.riot_emoji, name=spell['image']['full'][:-4])}   {skill_keys[i]} - {spell['name']}",
+                value=f"> {spell['description'].replace('<br>', '\n> ')}\n"
+                    f"⏱️ **쿨타임:** {spell['cooldownBurn'].replace('/', ' / ')}초 |"
+                    f"💧 **소모:** {costBurn}",
+                inline=False
+            )
+
+        separator = "\\*" * 40
+        self.embed.add_field(name="", value=f"**{separator}**", inline=False)
+    
+        # 아군 팁 줄바꿈 처리하여 문자열로 합성
+        ally_tips_text = "\n".join([f"- {tip}" for tip in self.data['data'][self.id]['allytips']])
+        self.embed.add_field(name="🔵 플레이할 때 (Ally Tips)", value=f"{ally_tips_text}", inline=False)
+
+        # 적군 팁 줄바꿈 처리하여 문자열로 합성
+        enemy_tips_text = "\n".join([f"- {tip}" for tip in self.data['data'][self.id]['enemytips']])
+        self.embed.add_field(name="🔴 상대할 때 (Enemy Tips)", value=f"{enemy_tips_text}", inline=False)
+
+        self.embed.set_footer(text=f"OP.GG로 이동  •  Riot Games 제공")
+        await interaction.response.edit_message(embed=self.embed, view=None)
 
 async def setup(bot):
     await bot.add_cog(RiotCog(bot))
