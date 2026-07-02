@@ -319,7 +319,7 @@ class General(commands.Cog):
 
     @app_commands.command(name="초대", description="초대 링크를 출력합니다.")
     async def 초대(self, interaction: discord.Interaction):
-        url= 'https://discord.com/oauth2/authorize?client_id=794112461741359124'
+        url= 'https://discord.com/oauth2/authorize?client_id=736505056223821835'
         await interaction.response.send_message(url, ephemeral=True)
 
 #########################################################################################################
