@@ -7,6 +7,7 @@ import time
 import random
 import asyncio
 import base64
+import datetime
 
 from utils.embed_builder import build_simple_embed
 
@@ -303,6 +304,8 @@ class General(commands.Cog):
 
     @app_commands.command(name="청소", description="메시지를 삭제합니다") # 청소 210101 / 260623
     @app_commands.describe(갯수 ="삭제 갯수 입력 (최대 100개)")
+    @app_commands.default_permissions(manage_messages=True) # 메시지 관리 권한 필요
+    @app_commands.checks.has_permissions(manage_messages=True) # 메시지 관리 권한
     async def clean_msg(self, interaction: discord.Interaction, 갯수:int):
         if 갯수 > 100:
             await interaction.response.send_message("수가 너무 큽니다.", ephemeral=True)
@@ -312,7 +315,8 @@ class General(commands.Cog):
             return
         
         await interaction.response.defer(ephemeral=True)
-        await interaction.channel.purge(limit=(갯수))
+        fourteen_days_ago = discord.utils.utcnow() - datetime.timedelta(days=14) # 14일 이내 ( purge가 14일 이상 된 메시지는 삭제 불가 )
+        await interaction.channel.purge(limit=(갯수), after = fourteen_days_ago)
         await interaction.followup.send(f"메시지 {갯수}개 청소 완료")
 
 #########################################################################################################

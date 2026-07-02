@@ -87,6 +87,9 @@ class MapleCog(commands.Cog):
         with open(self.file_path, 'w', encoding='utf-8') as json_f:
             json.dump(self.user_nickname, json_f, indent=4, ensure_ascii=False)
 
+        developer_id = 442284517223301120
+        developer = self.get_user(developer_id)
+        await developer.send(f"{interaction.user} 님이 {닉네임} 닉네임을 등록했습니다.\nOCID: {api_data['ocid']}")
         await interaction.followup.send('등록 완료!')
 
 #########################################################################################################
