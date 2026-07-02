@@ -74,7 +74,7 @@ class Luina(commands.Bot):
         # synced = await self.tree.sync(guild=guild_obj)
         # print("Done syncing commands.")
 
-        synced = await self.bot.tree.sync()
+        synced = await self.tree.sync()
 
         print("Done syncing commands.")
         print(f"동기화된 커맨드 수: {len(synced)}")
