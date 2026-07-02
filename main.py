@@ -1,7 +1,7 @@
 import discord # 디스코드
 from discord.ext import commands
 import os # 파일
-from config.settings import BOT_TOKEN, TEST_GUILD_ID # 설정값
+from config.settings import BOT_TOKEN # 설정값
 from datetime import datetime, timezone, timedelta # 시간
 import base64
 import re
