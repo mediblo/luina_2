@@ -1,0 +1,4 @@
+Riot Games Limit
+    1s : 20
+    2m : 100
+

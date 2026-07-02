@@ -3,14 +3,20 @@ from discord.ext import commands
 from discord import app_commands
 from typing import Optional
 import json
+from aiolimiter import AsyncLimiter
+import time
 
 from utils.http_client import get_json, get_response
-
 from config.settings import RIOT_API
 from utils.embed_builder import build_simple_embed
 
+class RateLimitError(Exception):
+    def __init__(self, wait_time):
+        self.wait_time = wait_time
+
 class RiotCog(commands.Cog):
     def __init__(self, bot):
+        self.limiter = AsyncLimiter(max_rate=100, time_period=120)
         self.bot = bot
         self.riot_emoji = []
         self.CHAM_ABBR_MAP = {
@@ -50,19 +56,62 @@ class RiotCog(commands.Cog):
         else:
             print(f"🔴 Riot Games (KR) | Status: {status} (인증 실패 또는 잘못된 요청)")
 
+    def _check_rate_limit(self):
+        """
+        Riot API Rate Limit을 체크하는 공통 헬퍼 메서드.
+        제한에 걸렸다면 정확한 대기 시간을 계산해 RateLimitError를 발생시킵니다.
+        """
+        if not self.limiter.has_capacity():
+            # 현재 이벤트 루프 시간 기준 계산
+            current_time = self.limiter._loop.time()
+            wait_time = self.limiter._rate_limit_per_item - (current_time - self.limiter._last_check)
+            
+            # 타이머 오차 방지용 보정 계산
+            if wait_time <= 0:
+                wait_time = max(0.1, self.limiter.time_period - (time.time() % self.limiter.time_period))
+            
+            raise RateLimitError(wait_time)
+        
+    async def request_api(self, interaction, url):
+        try:
+            # 1. 제한 체크
+            self._check_rate_limit()
+            
+            # 2. 토큰 소모 및 API 호출
+            async with self.limiter:
+                return await get_json(url)
+                
+        except RateLimitError as r:
+            # 3. 제한에 걸리면 여기서 알아서 디스코드 메시지를 보내줍니다.
+            await interaction.followup.send(
+                f"🛑 [제한 도달] Riot API 요청 제한에 도달했습니다.\n약 {r.wait_time:.1f}초 후에 다시 시도해 주세요."
+            )
+            # 제한에 걸렸음을 호출한 쪽에 알리기 위해 특별한 값(None이나 False) 리반환
+            return "RATE_LIMITED"
+
 #########################################################################################################
 
-    async def _fetch_match_data(self, match_id, RIOT_API):
+    async def _fetch_match_data(self, match_id):
         api_url = f"https://asia.api.riotgames.com/lol/match/v5/matches/{match_id}?api_key={RIOT_API}"
+        # limiter가 알아서 내부적으로 큐를 관리하며 속도를 조절합니다.
         try:
-            return await get_json(api_url)
+            # 1. 분리한 함수로 레이트 리밋 검사 (제한 시 여기서 바로 RateLimitError 발생)
+            self._check_rate_limit()
+            
+            # 2. 자리가 있다면 바로 통과하여 토큰 소모 및 API 호출
+            async with self.limiter:
+                return await get_json(api_url)
+                
+        except RateLimitError:
+            # RateLimitError는 상위(gather 호출부)에서 처리할 수 있도록 그대로 위로 던짐(raise)
+            raise
         except Exception as e:
-            # 개별 요청 실패 시 에러 로깅 후 None 반환 (전체 gather가 터지는 것을 방지)
+            # 일반적인 네트워크 에러나 API 에러는 로깅 후 None 반환
             print(f"Match {match_id} fetch error: {e}")
             return None
 
     @app_commands.command(name="전적", description="해당 유저의 최근 10판을 확인합니다.") # 전적 201212 / 220808 / 260618
-    @app_commands.describe(닉네임="태그 포함")
+    @app_commands.describe(닉네임="태그 포함")                                          # 총 23번
     @app_commands.choices(
         모드=[ # 신속, 일반, 솔랭, 자랭, 칼바람, 아레나
             app_commands.Choice(name="신속", value=490),
@@ -112,9 +161,12 @@ class RiotCog(commands.Cog):
         if len(nickname) < 2:
             await interaction.followup.send(content="닉네임에 태그(#)를 포함해 주세요. (예: 닉네임#KR1)", ephemeral=True)
             return
-        
+
         api_url=f"https://asia.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{nickname[0]}/{nickname[1]}?api_key={RIOT_API}" # puuid 구하기 [account-v1]
-        api_data = await get_json(api_url)
+        api_data = await self.request_api(interaction, api_url)
+        if api_data == "RATE_LIMITED": 
+            return
+        
 
         if api_data.get('status', {}).get('status_code') == 404:
             await interaction.followup.send(content="유저를 찾을 수 없습니다. 닉네임과 태그를 정확히 입력했는지 확인해주세요.", ephemeral=True)
@@ -124,18 +176,31 @@ class RiotCog(commands.Cog):
         name = f"{api_data['gameName']}#{api_data['tagLine']}"
 
         api_url = f"https://kr.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}?api_key={RIOT_API}"
-        api_data = await get_json(api_url)
+        api_data = await self.request_api(interaction, api_url)
+        if api_data == "RATE_LIMITED": 
+            return
+        
         profile_icon = api_data['profileIconId']
 
         api_url=f"https://asia.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?start=0&count=20&api_key={RIOT_API}" # 매치id 구하기 [match-v5]
-        matchs = await get_json(api_url)
+        matchs = await self.request_api(interaction, api_url)
+        if api_data == "RATE_LIMITED": 
+            return
 
         if not matchs:
             await interaction.followup.send("최근 플레이한 전적이 없습니다.", ephemeral=True)
             return
 
-        tasks = [self._fetch_match_data(match_id, RIOT_API) for match_id in matchs] # 병렬 매치 불러오기
+        tasks = [self._fetch_match_data(match_id) for match_id in matchs] # 병렬 매치 불러오기
         all_match_responses = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for res in all_match_responses:
+            if isinstance(res, RateLimitError):
+                # 제한에 걸린 첫 번째 태스크의 남은 시간을 가져와 메시지 전송
+                await interaction.followup.send(
+                    f"🛑 [제한 도달] Riot API 요청 제한에 도달했습니다.\n약 {res.wait_time:.1f}초 후에 다시 시도해 주세요."
+                )
+                return  # 명령어 수행 중단
 
         match_data = []
         wins = 0
@@ -249,7 +314,7 @@ class RiotCog(commands.Cog):
 #########################################################################################################
 
     @app_commands.command(name="롤", description="해당 유저의 정보를 확인합니다.") # 롤 ??? / 240313 / 260619
-    @app_commands.describe(닉네임="태그 포함")
+    @app_commands.describe(닉네임="태그 포함")                                  # 총 4번
     @app_commands.describe(공개여부="공개 여부 (기본값: 공개)")
     @app_commands.choices(
         공개여부=[
@@ -272,7 +337,10 @@ class RiotCog(commands.Cog):
         공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
 
         api_url=f"https://asia.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{nickname[0]}/{nickname[1]}?api_key={RIOT_API}" # puuid 구하기 [account-v1]
-        api_data = await get_json(api_url)
+        api_data = await self.request_api(interaction, api_url)
+        if api_data == "RATE_LIMITED": 
+            return
+        
 
         if api_data.get('status', {}).get('status_code') == 404:
             await interaction.followup.send(content="유저를 찾을 수 없습니다. 닉네임과 태그를 정확히 입력했는지 확인해주세요.", ephemeral=True)
@@ -280,14 +348,22 @@ class RiotCog(commands.Cog):
 
         puuid = api_data['puuid']
         name = f"{api_data['gameName']}#{api_data['tagLine']}"
+
+
         api_url = f"https://kr.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}?api_key={RIOT_API}"
-        api_data = await get_json(api_url)
+        api_data = await self.request_api(interaction, api_url)
+        if api_data == "RATE_LIMITED": 
+            return
+
+
         profile_icon = api_data['profileIconId']
         player_level = api_data['summonerLevel']
 
         # most 3 [ champion-mastery-v4 ]
         api_url = f"https://kr.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-puuid/{puuid}/top?count=3&api_key={RIOT_API}"
-        api_data = await get_json(api_url)
+        api_data = await self.request_api(interaction, api_url)
+        if api_data == "RATE_LIMITED": 
+            return
 
         most_data=[]
         for data in api_data:
@@ -316,7 +392,9 @@ class RiotCog(commands.Cog):
 
         # 솔랭 자랭 [ league-v4 ]
         api_url = f"https://kr.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}?api_key={RIOT_API}"
-        api_data = await get_json(api_url)
+        api_data = await self.request_api(interaction, api_url)
+        if api_data == "RATE_LIMITED": 
+            return
 
         rank={}
         for data in api_data:
@@ -401,20 +479,6 @@ class RiotCog(commands.Cog):
         thumbnail_url = f"https://ddragon.leagueoflegends.com/cdn/{game_ver}/img/champion/{champion_id}.png"
         embed.set_thumbnail(url = thumbnail_url)
 
-        # stats = champion_data['data'][champion_id]['stats']
-
-        # embed.add_field(name="❤️ 체력 (HP)", value=f"`{stats['hp']}` (+{stats['hpperlevel']}/Lv)", inline=True)
-        # embed.add_field(name="💧 마나 (MP)", value=f"`{stats['mp']}` (+{stats['mpperlevel']}/Lv)", inline=True)
-        # embed.add_field(name="👟 이동 속도", value=f"`{stats['movespeed']}`", inline=True)
-
-        # embed.add_field(name="🛡️ 방어력", value=f"`{stats['armor']}` (+{stats['armorperlevel']}/Lv)", inline=True)
-        # embed.add_field(name="🔮 마법 저항력", value=f"`{stats['spellblock']}` (+{stats['spellblockperlevel']}/Lv)", inline=True)
-        # embed.add_field(name="⚔️ 공격력 (AD)", value=f"`{stats['attackdamage']}` (+{stats['attackdamageperlevel']}/Lv)", inline=True)
-
-        # embed.add_field(name="💚 체력 재생 (5초)", value=f"`{stats['hpregen']}` (+{stats['hpregenperlevel']}/Lv)", inline=True)
-        # embed.add_field(name="💙 마나 재생 (5초)", value=f"`{stats['mpregen']}` (+{stats['mpregenperlevel']}/Lv)", inline=True)
-        # embed.add_field(name="⚡ 공격 속도", value=f"`{stats['attackspeed']}` (+{stats['attackspeedperlevel']}%/Lv)", inline=True)
-
         passive = champion_data['data'][champion_id]['passive']
         embed.add_field(
             name=f"{discord.utils.get(self.riot_emoji, name=passive['image']['full'][:-4])}   패시브 - {passive['name']}",
@@ -437,17 +501,6 @@ class RiotCog(commands.Cog):
                     f"💧 **소모:** {costBurn}",
                 inline=False
             )
-
-        # separator = "\\*" * 40
-        # embed.add_field(name="", value=f"**{separator}**", inline=False)
-    
-        # # 아군 팁 줄바꿈 처리하여 문자열로 합성
-        # ally_tips_text = "\n".join([f"- {tip}" for tip in champion_data['data'][champion_id]['allytips']])
-        # embed.add_field(name="🔵 플레이할 때 (Ally Tips)", value=f"{ally_tips_text}", inline=False)
-
-        # # 적군 팁 줄바꿈 처리하여 문자열로 합성
-        # enemy_tips_text = "\n".join([f"- {tip}" for tip in champion_data['data'][champion_id]['enemytips']])
-        # embed.add_field(name="🔴 상대할 때 (Enemy Tips)", value=f"{enemy_tips_text}", inline=False)
 
         embed.set_footer(text=f"OP.GG로 이동  •  Riot Games 제공")
         

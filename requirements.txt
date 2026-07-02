@@ -1,3 +1,4 @@
 discord.py[voice]==2.7.1
 httpx == 0.28.1
 lyricsgenius == 3.12.2
+aiolimiter == 1.2.1

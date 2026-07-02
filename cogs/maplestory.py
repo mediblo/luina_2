@@ -98,7 +98,7 @@ class MapleCog(commands.Cog):
             return
         
         
-        await interaction.response.defer(ephemeral=False)
+        await interaction.response.defer()
         stat_url = 'https://open.api.nexon.com/maplestory/v1/character/stat?ocid='
         rank_url = f'https://open.api.nexon.com/maplestory/v1/ranking/overall?date={self.time}&world_name=%EC%B1%8C%EB%A6%B0%EC%A0%80%EC%8A%A4&ocid='
 
@@ -257,15 +257,9 @@ class MapleCog(commands.Cog):
 #########################################################################################################
     
     @app_commands.command(name="메이플_공지", description="최신 공지를 조회합니다.") # 메이플_공지 260701
-    @app_commands.describe(공개여부="공개 여부를 선택합니다 (기본값 : 공개)")
-    @app_commands.choices(공개여부=[
-        app_commands.Choice(name="공개", value=1),
-        app_commands.Choice(name="비공개", value=0)
-    ])
-    async def maple_notice(self, interaction: discord.Interaction, 공개여부: int = 1):
-        공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
+    async def maple_notice(self, interaction: discord.Interaction):
 
-        await interaction.response.defer(ephemeral=공개여부)
+        await interaction.response.defer()
 
         embed = build_simple_embed(
             title="🍁 메이플스토리 최근 공지사항 목록"
@@ -303,15 +297,8 @@ class MapleCog(commands.Cog):
 #########################################################################################################
     
     @app_commands.command(name="메이플_이벤트", description="최신 이벤트를 조회합니다.") # 메이플_이벤트 260701
-    @app_commands.describe(공개여부="공개 여부를 선택합니다 (기본값 : 공개)")
-    @app_commands.choices(공개여부=[
-        app_commands.Choice(name="공개", value=1),
-        app_commands.Choice(name="비공개", value=0)
-    ])
-    async def maple_event(self, interaction: discord.Interaction, 공개여부: int = 1):            
-        공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
-
-        await interaction.response.defer(ephemeral=공개여부)
+    async def maple_event(self, interaction: discord.Interaction):
+        await interaction.response.defer()
 
         event_data = self.events.json()
 

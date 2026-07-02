@@ -165,8 +165,8 @@ class General(commands.Cog):
             description=f"{hour_emoji[hour%12]} 현재 시간"
         )
 
-        embed_result.add_field(name="UTC 기준", value= f"{utc:02d}:{min:02d}:{sec:02d}", inline= False)
         embed_result.add_field(name="KST 기준", value= f"{hour:02d}:{min:02d}:{sec:02d}", inline= False)
+        embed_result.add_field(name="UTC 기준", value= f"{utc:02d}:{min:02d}:{sec:02d}", inline= False)
     
         공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
         await interaction.response.send_message(embed=embed_result, ephemeral=공개여부)
@@ -331,7 +331,7 @@ class General(commands.Cog):
             text = []
             
             for guild in guild_list:
-                text.append(f"서버명 : {guild.name}, 멤버 수 : {guild.member_count}\n")
+                text.append(f"{guild.name} | {guild.member_count}\n")
             
             total_servers = len(text) - 0 # 개발자 서버 제외
             # 리스트 내용을 하나의 문자열로 합침

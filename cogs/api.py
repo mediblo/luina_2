@@ -51,6 +51,7 @@ class ApiCog(commands.Cog):
         api_data = await get_json(api_url)
         location = {}
         공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
+        await interaction.response.defer(ephemeral=공개여부)
         for x in api_data:
             if x['country'] == 'KR':
                 api_url = f"https://api.openweathermap.org/data/2.5/weather?lat={x['lat']}&lon={x['lon']}&appid={OPENWEATHERMAP_API}" # 날씨 정보 ( current weather data )
@@ -73,7 +74,7 @@ class ApiCog(commands.Cog):
                 break
 
         if not location:
-            await interaction.response.send_message("지역을 찾지 못했어요!", ephemeral=True)
+            await interaction.followup.send("지역을 찾지 못했어요!")
             return
 
         embed=build_simple_embed(
@@ -95,7 +96,7 @@ class ApiCog(commands.Cog):
         # 하단 푸터 (좌표 및 출처 표시)
         embed.set_footer(text=f"위도: {location['lat']} | 경도: {location['lon']}     •     OpenWeatherMap 제공")
         
-        await interaction.response.send_message(embed=embed, ephemeral=공개여부)
+        await interaction.followup.send(embed=embed)
 
 #########################################################################################################
 
@@ -137,7 +138,8 @@ class ApiCog(commands.Cog):
             "CNY": 185.0, "GBP": 1700.0, "INR": 16.0, "RUB": 15.0, "PHP": 24.0
         }
         공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
-                
+        await interaction.response.defer(ephemeral=공개여부)
+
         api_url=f'https://v6.exchangerate-api.com/v6/{EXCHANGERATE_API}/latest/{국가}'
         api_data = await get_json(api_url)
 
@@ -152,7 +154,7 @@ class ApiCog(commands.Cog):
             embed.add_field(name=COUNTRY_MAP[key], value=f"{value:.2f}")
 
         embed.set_footer(text=f"UTC 기준 {api_data['time_last_update_utc']}     •     Exchangerate 제공")
-        await interaction.response.send_message(embed=embed, ephemeral=공개여부)
+        await interaction.followup.send(embed=embed)
 
 #########################################################################################################
 
@@ -167,9 +169,10 @@ class ApiCog(commands.Cog):
         api_url=f'https://kli.korean.go.kr/term/api/search.do?key={ON_WORD_API}&apiSearchWord={단어}&sort=wt&start=1&num=5'
         api_data = await get_json(api_url)
         공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
+        await interaction.response.defer(ephemeral=공개여부)
 
         if api_data['channel'].get('returnCode') == "1":
-            await interaction.response.send_message(api_data['channel']['return_object'], ephemeral=공개여부)
+            await interaction.followup.send(api_data['channel']['return_object'])
             return
 
         word_data = {}
@@ -211,7 +214,7 @@ class ApiCog(commands.Cog):
         embed.set_footer(text=f"{api_data['channel']['title']} 제공")
 
         # 메시지 전송
-        await interaction.response.send_message(embed=embed, ephemeral = 공개여부)
+        await interaction.followup.send(embed=embed)
 
 #########################################################################################################
 
@@ -232,8 +235,7 @@ class ApiCog(commands.Cog):
         
         if not data:
             await interaction.followup.send(
-                f"❌ **'{노래}'** (아티스트: {가수 or '미지정'})에 대한 가사를 찾을 수 없습니다.", 
-                ephemeral=True
+                f"❌ **'{노래}'** (아티스트: {가수 or '미지정'})에 대한 가사를 찾을 수 없습니다."
             )
             return
 
@@ -269,14 +271,14 @@ class ApiCog(commands.Cog):
         
         if len(lyrics) <= max_length:
             embed.add_field(name="🎤 가사", value=f"```txt\n{lyrics}\n```", inline=False)
-            await interaction.followup.send(embed=embed, ephemeral = 공개여부)
+            await interaction.followup.send(embed=embed)
         else:
             # 가사가 길면 900자 단위로 쪼갬
             lyrics_chunks = [lyrics[i:i+max_length] for i in range(0, len(lyrics), max_length)]
             
             # 첫 번째 파트는 원래 interaction 응답으로 전송
             embed.add_field(name="🎤 가사 (1/n)", value=f"```txt\n{lyrics_chunks[0]}\n```", inline=False)
-            await interaction.followup.send(embed=embed, ephemeral = 공개여부)
+            await interaction.followup.send(embed=embed)
             
             # 두 번째 파트부터는 followup 기능을 이용해 순차적으로 전송
             for idx, chunk in enumerate(lyrics_chunks[1:], start=2):
@@ -286,7 +288,7 @@ class ApiCog(commands.Cog):
                     value=f"```txt\n{chunk}\n```", 
                     inline=False
                 )
-                await interaction.followup.send(embed=next_embed, ephemeral = 공개여부)
+                await interaction.followup.send(embed=next_embed)
 
 #########################################################################################################
 

@@ -173,6 +173,7 @@ worker: python main.py
 - `data/kkuko_db.txt`
 	- 대용량 단어 사전 파일 (약 332,534 라인)
 	- 텍스트 기반 사전 데이터
+	- 끄투 코리아 DB
 - `data/maple_nickname.json`
 	- 메이플 닉네임 -> ocid 캐시 저장
 
