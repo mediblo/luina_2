@@ -163,6 +163,7 @@ class HelpCog(commands.Cog):
             )
 
         embed.set_author(name=f"구동 시간 : {self.bot.start_time}")
+        embed.url = "https://github.com/mediblo/luina_2/blob/main/how_to_use.md" # 임시로 GitHub 링크를 사용, 추후 노션으로 변경
         await interaction.response.send_message(embed=embed)
 
 async def setup(bot):

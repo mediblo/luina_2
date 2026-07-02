@@ -8,13 +8,9 @@ Discord.py 기반 멀티 게임/유틸 디스코드 봇입니다.
 - Lost Ark 명령어
 - MapleStory 명령어
 
-## 변경 반영 요약
-
-- 메이플스토리 코그 추가: `cogs/maplestory.py`
-- 메이플 닉네임 캐시 파일 추가: `data/maple_nickname.json`
-- 실행 환경 파일 추가: `Procfile`, `.python-version`
-- 설정값 환경변수 방식으로 전환: `config/settings.py`
-- 슬래시 커맨드 동기화 방식 변경: 길드 동기화 -> 전역 동기화 (`main.py`)
+## 들어가기에 앞서
+> 작성된 모든 API 키는 Public에 맞춰 전부 폐기 및 재할당을 받아 사용이 불가능합니다.  
+> 또한 대부분의 임베드 꾸미기는 미술적 감각이 없는 개발자를 Gemini가 도와줬습니다.
 
 ## 기술 스택
 
@@ -187,3 +183,5 @@ worker: python main.py
 - 시작 시 각 코그에서 API 상태 체크 로그를 출력합니다.
 - 오류 발생 시 앱 커맨드 에러 핸들러에서 개발자 DM 전송을 시도합니다.
 - 개발 이력은 `history.txt`에 기록되어 있습니다.
+- 몇몇 코드들은 서버 및 유저에 한하여 하드코딩 되어 있습니다.
+- 가져도 딱히 상관은 없는 guild_id와 member_id입니다.
