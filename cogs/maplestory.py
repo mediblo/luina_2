@@ -58,7 +58,7 @@ class MapleCog(commands.Cog):
         else:
             print(f"🔴 MapleStory_event | Status: {status} (인증 실패 또는 잘못된 요청)")
 
-        is_connected = db.reference('.info/connected').get()
+        is_connected = db.reference.child('.info/connected').get()
         if is_connected:
             print("🟢 Firebase (정상연결)")
         else:
