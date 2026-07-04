@@ -3,3 +3,4 @@ httpx == 0.28.1
 lyricsgenius == 3.12.2
 aiolimiter == 1.2.1
 firebase-admin == 7.1.0
+python-dotenv == 1.0.1

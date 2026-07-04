@@ -480,9 +480,10 @@ class RiotCog(commands.Cog):
         embed.set_thumbnail(url = thumbnail_url)
 
         passive = champion_data['data'][champion_id]['passive']
+        passive_value = passive['description'].replace('<br>', '\n> ')
         embed.add_field(
             name=f"{discord.utils.get(self.riot_emoji, name=passive['image']['full'][:-4])}   패시브 - {passive['name']}",
-            value=f"> {passive['description'].replace('<br>', '\n> ')}\n",
+            value=f"> {passive_value}\n",
             inline=False
         )
 
@@ -494,9 +495,10 @@ class RiotCog(commands.Cog):
             if costBurn == "0":
                 costBurn = '소모값 없음'
 
+            spell_value = spell['description'].replace('<br>', '\n> ')
             embed.add_field(
                 name=f"{discord.utils.get(self.riot_emoji, name=spell['image']['full'][:-4])}   {skill_keys[i]} - {spell['name']}",
-                value=f"> {spell['description'].replace('<br>', '\n> ')}\n"
+                value=f"> {spell_value}\n"
                     f"⏱️ **쿨타임:** {spell['cooldownBurn'].replace('/', ' / ')}초 |"
                     f"💧 **소모:** {costBurn}",
                 inline=False
@@ -656,9 +658,10 @@ class chamBtn(discord.ui.View):
         self.embed.add_field(name="⚡ 공격 속도", value=f"`{stats['attackspeed']}` (+{stats['attackspeedperlevel']}%/Lv)", inline=True)
 
         passive = self.data['data'][self.id]['passive']
+        passive_value = passive['description'].replace('<br>', '\n> ')
         self.embed.add_field(
             name=f"{discord.utils.get(self.riot_emoji, name=passive['image']['full'][:-4])}   패시브 - {passive['name']}",
-            value=f"> {passive['description'].replace('<br>', '\n> ')}\n",
+            value=f"> {passive_value}\n",
             inline=False
         )
 
@@ -670,9 +673,11 @@ class chamBtn(discord.ui.View):
             if costBurn == "0":
                 costBurn = '소모값 없음'
 
+            
+            spell_value = spell['description'].replace('<br>', '\n> ')
             self.embed.add_field(
                 name=f"{discord.utils.get(self.riot_emoji, name=spell['image']['full'][:-4])}   {skill_keys[i]} - {spell['name']}",
-                value=f"> {spell['description'].replace('<br>', '\n> ')}\n"
+                value=f"> {spell_value}\n"
                     f"⏱️ **쿨타임:** {spell['cooldownBurn'].replace('/', ' / ')}초 |"
                     f"💧 **소모:** {costBurn}",
                 inline=False
