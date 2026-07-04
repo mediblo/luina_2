@@ -1,35 +1,32 @@
 import discord, asyncio
 from discord.ext import commands
 from discord import app_commands
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import db
+from datetime import datetime, timedelta, timezone
 
-import json
-import os
-from config.settings import MAPLESTORY_API
+from config.settings import MAPLESTORY_API, FIREBASE_CREDENTIALS, FIREBASE_URL
 from utils.http_client import get_json, get_response
 from utils.embed_builder import build_simple_embed
-from datetime import datetime, timedelta, timezone
 
 class MapleCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.user_nickname = None
         self.headers= {
             'accept': 'application/json',
             'x-nxopen-api-key' : MAPLESTORY_API
         }
         self.time = datetime.now().strftime("%Y-%m-%d")
-        self.file_path = 'data/maple_nickname.json'
         self.notices = None
         self.events = None
+
+        cred = credentials.Certificate(FIREBASE_CREDENTIALS)
+        firebase_admin.initialize_app(cred, {
+            'databaseURL': FIREBASE_URL # 본인 DB URL 입력
+        })
         
     async def cog_load(self):
-        if not os.path.exists(self.file_path): # 없음 만들기
-            with open(self.file_path, 'w', encoding='utf-8') as json_f:
-                json.dump({}, json_f, indent=4, ensure_ascii=False)
-
-        with open(self.file_path, 'r', encoding='utf-8') as json_f:
-            self.user_nickname = json.load(json_f)
-
         notice_url = 'https://open.api.nexon.com/maplestory/v1/notice'
         self.notices = await get_response(url=notice_url, headers=self.headers)
         status = self.notices.status_code
@@ -60,6 +57,12 @@ class MapleCog(commands.Cog):
         else:
             print(f"🔴 MapleStory_event | Status: {status} (인증 실패 또는 잘못된 요청)")
 
+        is_connected = db.reference('.info/connected').get()
+        if is_connected:
+            print("🟢 Firebase (정상연결)")
+        else:
+            print("🔴 Firebase (연결 끊어짐)")
+
 #########################################################################################################
 
     @app_commands.command(name="메이플_등록", description="해당 닉네임을 등록합니다.") # 메이플_등록 260701
@@ -68,8 +71,10 @@ class MapleCog(commands.Cog):
         if interaction.guild.id not in [1307325561890406452, 736512667530821653]:
             await interaction.response.send_message('개발중인 명령어 입니다.', ephemeral=True)
             return
-        if self.user_nickname.get(닉네임):
-            await interaction.response.send_message('이미 등록한 닉네임입니다.', ephemeral=True)
+        
+        ref = db.reference(f'maple_character/{닉네임}') # 이미 있음
+        if ref.get() is not None:
+            await interaction.response.send_message('이미 등록된 닉네임입니다.', ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -78,17 +83,18 @@ class MapleCog(commands.Cog):
         
         api_data:dict = await get_json(url=data_url, headers=self.headers)
         
-        if api_data.get('ocid') is None: # 없는 이름
+        if not api_data.get('ocid'): # 없는 이름
             await interaction.followup.send('없는 닉네임')
             return
         
-        self.user_nickname[닉네임] = api_data['ocid']
+        ocid = api_data['ocid']
+        if user:= db.reference('maple_character').order_by_value().equal_to(ocid).get(): # 닉변한 경우 [ 기존 데이터 삭제 ]
+            db.reference(f'maple_character/{list(user.keys())[0]}').delete()
 
-        with open(self.file_path, 'w', encoding='utf-8') as json_f:
-            json.dump(self.user_nickname, json_f, indent=4, ensure_ascii=False)
+        ref.set(ocid) # 추가
 
         developer_id = 442284517223301120
-        developer = self.get_user(developer_id)
+        developer = self.bot.get_user(developer_id)
         await developer.send(f"{interaction.user} 님이 {닉네임} 닉네임을 등록했습니다.\nOCID: {api_data['ocid']}")
         await interaction.followup.send('등록 완료!')
 
@@ -106,7 +112,7 @@ class MapleCog(commands.Cog):
         rank_url = f'https://open.api.nexon.com/maplestory/v1/ranking/overall?date={self.time}&world_name=%EC%B1%8C%EB%A6%B0%EC%A0%80%EC%8A%A4&ocid='
 
         data=dict()
-        for nickname, ocid in self.user_nickname.items():
+        for nickname, ocid in (db.reference('maple_character').get() or {}).items():
             stat_api = await get_json(url=(stat_url+ocid), headers=self.headers)
             rank_api = await get_json(url=(rank_url+ocid), headers=self.headers)
             if not rank_api['ranking'] or not stat_api['final_stat']:
@@ -187,7 +193,7 @@ class MapleCog(commands.Cog):
 
         await interaction.response.defer(ephemeral=공개여부)
 
-        if (ocid:= self.user_nickname.get(닉네임)) is None:
+        if (ocid:= db.reference(f'maple_character/{닉네임}').get()) is None:
             data_url = f'https://open.api.nexon.com/maplestory/v1/id?character_name={닉네임}'
             
             api_data:dict = await get_json(url=data_url, headers=self.headers)
