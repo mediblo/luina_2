@@ -5,6 +5,7 @@ import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import db
 from datetime import datetime, timedelta, timezone
+import json
 
 from config.settings import MAPLESTORY_API, FIREBASE_CREDENTIALS, FIREBASE_URL
 from utils.http_client import get_json, get_response
@@ -21,7 +22,7 @@ class MapleCog(commands.Cog):
         self.notices = None
         self.events = None
 
-        cred = credentials.Certificate(FIREBASE_CREDENTIALS)
+        cred = credentials.Certificate(json.loads(FIREBASE_CREDENTIALS))
         firebase_admin.initialize_app(cred, {
             'databaseURL': FIREBASE_URL # 본인 DB URL 입력
         })
