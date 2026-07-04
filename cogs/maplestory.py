@@ -110,49 +110,55 @@ class MapleCog(commands.Cog):
         
         await interaction.response.defer()
         stat_url = 'https://open.api.nexon.com/maplestory/v1/character/stat?ocid='
-        rank_url = f'https://open.api.nexon.com/maplestory/v1/ranking/overall?date={self.time}&world_name=%EC%B1%8C%EB%A6%B0%EC%A0%80%EC%8A%A4&ocid='
+        rank_url = f'https://open.api.nexon.com/maplestory/v1/ranking/overall?date={self.time}&ocid='
 
-        data=dict()
+        data=[]
         for nickname, ocid in (db.reference('maple_character').get() or {}).items():
             stat_api = await get_json(url=(stat_url+ocid), headers=self.headers)
             rank_api = await get_json(url=(rank_url+ocid), headers=self.headers)
             if not rank_api['ranking'] or not stat_api['final_stat']:
                 continue
-            rank_api['ranking'][0]['power'] = stat_api['final_stat'][-2]['stat_value']
-            data[rank_api['ranking'][0]['ranking']] = rank_api
-            await asyncio.sleep(0.5)
+
+            power = int(stat_api['final_stat'][-2]['stat_value'])
+
+            data.append({
+                "power": power,
+                "rank_info": rank_api['ranking'][0],
+            })
+            await asyncio.sleep(0.3)
 
         # 1. 딕셔너리의 Key(랭킹 번호)를 기준으로 오름차순(1등부터) 정렬
-        sorted_ranking = sorted(data.items())
+        data.sort(key=lambda x: x["power"], reverse=True)
 
         # 2. 디스코드 임베드 생성
         embed = build_simple_embed(
-            title="🍁 챌린저스 월드 캐릭터 랭킹",
-            description=f"조회 기준일: `{self.time}`\n등록된 캐릭터들의 랭킹 정보입니다."
+            title="🍁 메이플스토리 캐릭터 전투력 랭킹",
+            description=f"조회 기준일: `{self.time}`\n등록된 캐릭터들간의 랭킹 정보입니다."
         )
 
         # 3. 정렬된 데이터를 돌며 임베드에 필드 추가
-        for rank, rank_info in sorted_ranking:
-            rank_val = int(rank)
-            format_rank = f"{rank_val:,}"
+        for idx, item in enumerate(data, start=1):
             # ranking 리스트 안의 첫 번째 캐릭터 정보 추출
-            char_data = rank_info['ranking'][0]
+            char_data = item['rank_info']
             
+            global_rank = int(char_data["ranking"])
+            format_rank = f"{global_rank:,}"
+
             name = char_data['character_name']
             level = char_data['character_level']
             job = char_data['class_name']
             guild = char_data['character_guildname'] or "없음"
             
             # 전투력(str -> int 변환 후 천 단위 쉼표 추가)
-            power_val = int(char_data['power'])
+            power_val = item["power"]
             formatted_power = f"{power_val:,}"
 
             # 상위 3명에게는 특별한 이모지 부여 (시각적 효과)
-            if rank == sorted_ranking[0][0]:
+            if idx == 1:
                 rank_emoji = "🥇"
-            elif len(sorted_ranking) > 1 and rank == sorted_ranking[1][0]:
+            elif idx == 2:
                 rank_emoji = "🥈"
-            elif len(sorted_ranking) > 2 and rank == sorted_ranking[2][0]:
+            elif idx == 3:
                 rank_emoji = "🥉"
             else:
                 rank_emoji = ""
@@ -166,7 +172,7 @@ class MapleCog(commands.Cog):
 
             # 필드 추가 (Inline=False로 해서 한 줄에 하나씩 깔끔하게 떨어지게 설정)
             embed.add_field(
-                name=f"{rank_emoji} {format_rank}위 - {name}",
+                name=f"{rank_emoji} {idx}위 ({format_rank}위) - {name}",
                 value=field_value,
                 inline=False
             )
