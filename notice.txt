@@ -2,3 +2,6 @@ Riot Games Limit
     1s : 20
     2m : 100
 
+MapleStory Limit
+    1s : 5
+    
