@@ -4,6 +4,7 @@ from discord import app_commands
 import lyricsgenius
 from typing import Optional
 import html
+import re
 
 from config.settings import OPENWEATHERMAP_API, EXCHANGERATE_API, ON_WORD_API, GENIUS_API
 from utils.embed_builder import build_simple_embed
@@ -215,10 +216,10 @@ class ApiCog(commands.Cog):
         )
 
         if words[word_idx]['use_ex']:
-            embed.add_field(name="📝 예문", value=html.unescape(words[word_idx]['use_ex']), inline=False)
+            embed.add_field(name="📝 예문", value=re.sub(r"<[^>]+>", "", html.unescape(words[word_idx]['use_ex'])), inline=False)
 
         embed.set_author(name="1/5")
-        embed.set_footer(text=f"{api_data['channel']['title'].replace("<strong>", "").replace("</strong>", "")} 제공")
+        embed.set_footer(text=f"{api_data['channel']['title']} 제공")
 
         view = wordBtn(interaction=interaction, data=words, idx=word_idx, embed=embed)
 
@@ -339,7 +340,7 @@ class wordBtn(discord.ui.View):
             )
 
             if self.data[self.idx]['use_ex']:
-                self.embed.add_field(name="📝 예문", value=html.unescape(self.data[self.idx]['use_ex']), inline=False)
+                self.embed.add_field(name="📝 예문", value=re.sub(r"<[^>]+>", "",html.unescape(self.data[self.idx]['use_ex'])), inline=False)
             self.embed.set_author(name=f"{self.idx+1}/5")
             await interaction.response.edit_message(embed=self.embed, view=self)
         else:
@@ -369,7 +370,7 @@ class wordBtn(discord.ui.View):
             )
 
             if self.data[self.idx]['use_ex']:
-                self.embed.add_field(name="📝 예문", value=html.unescape(self.data[self.idx]['use_ex']), inline=False)
+                self.embed.add_field(name="📝 예문", value=re.sub(r"<[^>]+>", "", html.unescape(self.data[self.idx]['use_ex'])), inline=False)
             self.embed.set_author(name=f"{self.idx+1}/5")
             await interaction.response.edit_message(embed=self.embed, view=self)
         else:
