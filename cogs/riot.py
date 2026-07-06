@@ -131,7 +131,8 @@ class RiotCog(commands.Cog):
         ]
     )
     async def match_log(self, interaction: discord.Interaction, 닉네임:str, 모드:int = -1, 공개여부: int = 1):
-        await interaction.response.defer(ephemeral=True)
+        공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
+        await interaction.response.defer(ephemeral=공개여부)
         nickname = 닉네임.split('#')
         mode = 모드
 
@@ -155,7 +156,6 @@ class RiotCog(commands.Cog):
         CHAMPION_RENAME = {
             'FiddleSticks' : 'Fiddlesticks'
         }
-        공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
         
         # 닉네임 형식 예외 처리 (태그 누락 방지)
         if len(nickname) < 2:
@@ -323,7 +323,6 @@ class RiotCog(commands.Cog):
         ]
     )
     async def lol_info(self, interaction: discord.Interaction, 닉네임:str, 공개여부: int = 1):
-        await interaction.response.defer(ephemeral=True)
         nickname = 닉네임.split('#')
         TIER_MAP = {'IRON' : 'I', 'BRONZE' : 'B', 'SILVER' : 'S',
                     'GOLD' : 'G', 'PLATINUM' : 'P', 'EMERALD' : 'E',
@@ -335,6 +334,7 @@ class RiotCog(commands.Cog):
             'FiddleSticks' : 'Fiddlesticks'
         }
         공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
+        await interaction.response.defer(ephemeral=공개여부)
 
         api_url=f"https://asia.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{nickname[0]}/{nickname[1]}?api_key={RIOT_API}" # puuid 구하기 [account-v1]
         api_data = await self.request_api(interaction, api_url)
@@ -343,7 +343,7 @@ class RiotCog(commands.Cog):
         
 
         if api_data.get('status', {}).get('status_code') == 404:
-            await interaction.followup.send(content="유저를 찾을 수 없습니다. 닉네임과 태그를 정확히 입력했는지 확인해주세요.", ephemeral=True)
+            await interaction.followup.send(content="유저를 찾을 수 없습니다. 닉네임과 태그를 정확히 입력했는지 확인해주세요.")
             return
 
         puuid = api_data['puuid']
@@ -430,7 +430,7 @@ class RiotCog(commands.Cog):
                                 f"{rank['FLEX']['win'] + rank['FLEX']['lose']}전 {rank['FLEX']['win']}승 {rank['FLEX']['lose']}패 {(rank['FLEX']['win'] / (rank['FLEX']['win'] + rank['FLEX']['lose']) * 100):.2f}%")
         
         embed.set_footer(text=f"OP.GG로 이동  •  Riot Games 제공")
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed)
 
 #########################################################################################################
 

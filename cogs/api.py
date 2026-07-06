@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 import lyricsgenius
 from typing import Optional
+import html
 
 from config.settings import OPENWEATHERMAP_API, EXCHANGERATE_API, ON_WORD_API, GENIUS_API
 from utils.embed_builder import build_simple_embed
@@ -175,15 +176,20 @@ class ApiCog(commands.Cog):
             await interaction.followup.send(api_data['channel']['return_object'])
             return
 
-        word_data = {}
-
-        data = api_data['channel']['return_object'][0]['resultlist'][0]
-        word_data['word'] = data['word']
-        word_data['description'] = data['definition']
-        word_data['category'] = f"{data['category_main']} > {data['category_sub']}"
-        word_data['origin'] = f"{data['origin_cc']}"
-        word_data['use_ex'] = data["use_ex"].replace("<strong>", "**").replace("</strong>", "**")
-        word_data['source'] = f"{data['glossary']} {data['source']}"
+        words = []
+        word_idx = 0
+        for i in range(5):
+            word_data = {}
+        
+            data = api_data['channel']['return_object'][0]['resultlist'][i]
+            word_data['word'] = data['word']
+            word_data['description'] = data['definition']
+            word_data['category'] = f"{data['category_main']} > {data['category_sub']}"
+            word_data['origin'] = f"{data['origin_cc']}"
+            word_data['use_ex'] = data["use_ex"].replace("<strong>", "**").replace("</strong>", "**")
+            word_data['source'] = f"{data['glossary']} {data['source']}"
+            words.append(word_data)
+        
 
         embed = build_simple_embed(
             title="사전",
@@ -191,30 +197,33 @@ class ApiCog(commands.Cog):
         )
 
         embed.add_field(
-            name=f"📖 {word_data['word']} {word_data['origin']}",
-            value = word_data['description'],
+            name=f"📖 {html.unescape(words[word_idx]['word'])} {words[word_idx]['origin']}",
+            value = html.unescape(words[word_idx]['description']),
             inline=False
         )
 
         # 4. 필드 추가 (분류 및 출처)
         embed.add_field(
             name="📂 분류",
-            value=word_data['category'],
+            value=words[word_idx]['category'],
             inline=True,
         )
         embed.add_field(
             name="📍 출처",
-            value=word_data['source'],
+            value=words[word_idx]['source'],
             inline=True,
         )
 
-        if data['use_ex']:
-            embed.add_field(name="📝 예문", value=word_data['use_ex'], inline=False)
+        if words[word_idx]['use_ex']:
+            embed.add_field(name="📝 예문", value=html.unescape(words[word_idx]['use_ex']), inline=False)
 
-        embed.set_footer(text=f"{api_data['channel']['title']} 제공")
+        embed.set_author(name="1/5")
+        embed.set_footer(text=f"{api_data['channel']['title'].replace("<strong>", "").replace("</strong>", "")} 제공")
+
+        view = wordBtn(interaction=interaction, data=words, idx=word_idx, embed=embed)
 
         # 메시지 전송
-        await interaction.followup.send(embed=embed)
+        await interaction.followup.send(embed=embed, view=view)
 
 #########################################################################################################
 
@@ -291,6 +300,81 @@ class ApiCog(commands.Cog):
                 await interaction.followup.send(embed=next_embed)
 
 #########################################################################################################
+
+class wordBtn(discord.ui.View):
+    def __init__(self, interaction: discord.Interaction | discord.Member, data: dict, idx: int, embed : discord.Embed):
+        super().__init__(timeout=60)
+        self.interaction = interaction
+        self.data = data
+        self.embed = embed
+        self.idx = idx
+    
+    async def on_timeout(self):
+        # 1. view에 속한 모든 버튼을 반복문으로 돌며 비활성화(disabled)시킵니다.
+        for item in self.children:
+            if isinstance(item, discord.ui.Button):
+                item.disabled = True
+
+    @discord.ui.button(label="이전", style=discord.ButtonStyle.success)
+    async def prev_btn(self, interaction : discord.Interaction, btn : discord.ui.Button):
+        if self.idx != 0:
+            self.embed.clear_fields()
+            self.idx-=1
+            self.embed.add_field(
+                name=f"📖 {html.unescape(self.data[self.idx]['word'])} {self.data[self.idx]['origin']}",
+                value = html.unescape(self.data[self.idx]['description']),
+                inline=False
+            )
+
+            # 4. 필드 추가 (분류 및 출처)
+            self.embed.add_field(
+                name="📂 분류",
+                value=self.data[self.idx]['category'],
+                inline=True
+            )
+            self.embed.add_field(
+                name="📍 출처",
+                value=self.data[self.idx]['source'],
+                inline=True
+            )
+
+            if self.data[self.idx]['use_ex']:
+                self.embed.add_field(name="📝 예문", value=html.unescape(self.data[self.idx]['use_ex']), inline=False)
+            self.embed.set_author(name=f"{self.idx+1}/5")
+            await interaction.response.edit_message(embed=self.embed, view=self)
+        else:
+            pass
+
+    @discord.ui.button(label="다음", style=discord.ButtonStyle.success)
+    async def next_btn(self, interaction : discord.Interaction, btn : discord.ui.Button):
+        if self.idx != 4:
+            self.embed.clear_fields()
+            self.idx+=1
+            self.embed.add_field(
+                name=f"📖 {html.unescape(self.data[self.idx]['word'])} {self.data[self.idx]['origin']}",
+                value = html.unescape(self.data[self.idx]['description']),
+                inline=False
+            )
+
+            # 4. 필드 추가 (분류 및 출처)
+            self.embed.add_field(
+                name="📂 분류",
+                value=self.data[self.idx]['category'],
+                inline=True,
+            )
+            self.embed.add_field(
+                name="📍 출처",
+                value=self.data[self.idx]['source'],
+                inline=True,
+            )
+
+            if self.data[self.idx]['use_ex']:
+                self.embed.add_field(name="📝 예문", value=html.unescape(self.data[self.idx]['use_ex']), inline=False)
+            self.embed.set_author(name=f"{self.idx+1}/5")
+            await interaction.response.edit_message(embed=self.embed, view=self)
+        else:
+            pass
+        
 
 async def setup(bot):
     await bot.add_cog(ApiCog(bot))
