@@ -7,7 +7,7 @@ import json
 from utils.embed_builder import build_simple_embed
 from config.settings import LOSTARK_API
 from utils.http_client import get_response
-from utils.logger import logger
+from utils.logger import log_info
 
 class LostarkCog(commands.Cog):
     def __init__(self, bot):
@@ -25,30 +25,30 @@ class LostarkCog(commands.Cog):
         status = self.notices.status_code
 
         if 200 <= status < 300:
-            logger.info(f"🟢 LostArk_notice | Status: {status} (정상 연결)")
+            log_info(f"🟢 LostArk_notice | Status: {status} (정상 연결)")
         
         # 🟡 노랑 동그라미: 호출 제한 초과 (429) 또는 일시적 서버 에러 (500대)
         elif status == 429 or status >= 500:
-            logger.info(f"🟡 LostArk_notice | Status: {status} (호출 제한 또는 서버 지연)")
+            log_info(f"🟡 LostArk_notice | Status: {status} (호출 제한 또는 서버 지연)")
         
         # 🔴 빨강 동그라미: 인증 실패 (401, 403) 및 기타 잘못된 요청 (400대)
         else:
-            logger.info(f"🔴 LostArk_notice | Status: {status} (인증 실패 또는 잘못된 요청)")
+            log_info(f"🔴 LostArk_notice | Status: {status} (인증 실패 또는 잘못된 요청)")
 
         api_url = f'https://developer-lostark.game.onstove.com/news/events'
         self.events = await get_response(api_url, headers = self.headers)
         status = self.events.status_code
 
         if 200 <= status < 300:
-            logger.info(f"🟢 LostArk_event | Status: {status} (정상 연결)")
+            log_info(f"🟢 LostArk_event | Status: {status} (정상 연결)")
         
         # 🟡 노랑 동그라미: 호출 제한 초과 (429) 또는 일시적 서버 에러 (500대)
         elif status == 429 or status >= 500:
-            logger.info(f"🟡 LostArk_event | Status: {status} (호출 제한 또는 서버 지연)")
+            log_info(f"🟡 LostArk_event | Status: {status} (호출 제한 또는 서버 지연)")
         
         # 🔴 빨강 동그라미: 인증 실패 (401, 403) 및 기타 잘못된 요청 (400대)
         else:
-            logger.info(f"🔴 LostArk_event | Status: {status} (인증 실패 또는 잘못된 요청)")
+            log_info(f"🔴 LostArk_event | Status: {status} (인증 실패 또는 잘못된 요청)")
 
 #########################################################################################################
 

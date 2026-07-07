@@ -9,7 +9,7 @@ import re
 from config.settings import OPENWEATHERMAP_API, EXCHANGERATE_API, ON_WORD_API, GENIUS_API
 from utils.embed_builder import build_simple_embed
 from utils.http_client import get_json, get_response
-from utils.logger import logger
+from utils.logger import log_info
 
 class ApiCog(commands.Cog):
     def __init__(self, bot):
@@ -30,15 +30,15 @@ class ApiCog(commands.Cog):
             api_data = await get_response(api_url[i])
             status = api_data.status_code
             if 200 <= status < 300:
-                logger.info(f"🟢 {api_name[i]} | Status: {status} (정상 연결)", "api", api_name)
+                log_info(f"🟢 {api_name[i]} | Status: {status} (정상 연결)", "api", api_name)
             
             # 🟡 노랑 동그라미: 호출 제한 초과 (429) 또는 일시적 서버 에러 (500대)
             elif status == 429 or status >= 500:
-                logger.info(f"🟡 {api_name[i]} | Status: {status} (호출 제한 또는 서버 지연)", "api", api_name)
+                log_info(f"🟡 {api_name[i]} | Status: {status} (호출 제한 또는 서버 지연)", "api", api_name)
             
             # 🔴 빨강 동그라미: 인증 실패 (401, 403) 및 기타 잘못된 요청 (400대)
             else:
-                logger.info(f"🔴 {api_name[i]} | Status: {status} (인증 실패 또는 잘못된 요청)", "api", api_name)
+                log_info(f"🔴 {api_name[i]} | Status: {status} (인증 실패 또는 잘못된 요청)", "api", api_name)
 
 #########################################################################################################
 
@@ -180,10 +180,9 @@ class ApiCog(commands.Cog):
 
         words = []
         word_idx = 0
-        for i in range(5):
+        for data in api_data['channel']['return_object'][0]['resultlist']:
             word_data = {}
         
-            data = api_data['channel']['return_object'][0]['resultlist'][i]
             word_data['word'] = data['word']
             word_data['description'] = data['definition']
             word_data['category'] = f"{data['category_main']} > {data['category_sub']}"

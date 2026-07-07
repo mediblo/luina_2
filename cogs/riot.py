@@ -9,7 +9,7 @@ import time
 from utils.http_client import get_json, get_response
 from config.settings import RIOT_API
 from utils.embed_builder import build_simple_embed
-from utils.logger import logger
+from utils.logger import log_info
 
 class RateLimitError(Exception):
     def __init__(self, wait_time):
@@ -47,15 +47,15 @@ class RiotCog(commands.Cog):
         status = api_data.status_code
 
         if 200 <= status < 300:
-            logger.info(f"🟢 Riot Games (KR) | Status: {status} (정상 연결)")
+            log_info(f"🟢 Riot Games (KR) | Status: {status} (정상 연결)")
         
         # 🟡 노랑 동그라미: 호출 제한 초과 (429) 또는 일시적 서버 에러 (500대)
         elif status == 429 or status >= 500:
-            logger.info(f"🟡 Riot Games (KR) | Status: {status} (호출 제한 또는 서버 지연)")
+            log_info(f"🟡 Riot Games (KR) | Status: {status} (호출 제한 또는 서버 지연)")
         
         # 🔴 빨강 동그라미: 인증 실패 (401, 403) 및 기타 잘못된 요청 (400대)
         else:
-            logger.info(f"🔴 Riot Games (KR) | Status: {status} (인증 실패 또는 잘못된 요청)")
+            log_info(f"🔴 Riot Games (KR) | Status: {status} (인증 실패 또는 잘못된 요청)")
 
     def _check_rate_limit(self):
         """

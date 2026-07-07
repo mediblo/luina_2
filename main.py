@@ -4,10 +4,12 @@ import os # 파일
 from datetime import datetime, timezone, timedelta # 시간
 import base64
 import re
+import signal
 
 from utils.logger import logger
 from config.settings import BOT_TOKEN # 설정값
 from services.log_service import flush_task
+from core.lifecycle import graceful_shutdown
 
 intents = discord.Intents.all() # 모든 권한
 
@@ -18,8 +20,15 @@ class Luina(commands.Bot):
         self.start_time = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S.%f")[:-4]
 
     async def on_ready(self):
-        logger.info(f"로그인 완료: {self.user} ({self.start_time})", "Discord")
-        asyncio.create_task(flush_task)
+        logger.log_info(f"로그인 완료: {self.user} ({self.start_time})", "Discord")
+        asyncio.create_task(flush_task())
+
+        loop = asyncio.get_running_loop()
+
+        loop.add_signal_handler(
+            signal.SIGTERM,
+            lambda: asyncio.create_task(graceful_shutdown(bot))
+        )
 
     async def on_message(self, message):
         if message.author.bot: # bot은 제외
@@ -56,10 +65,11 @@ class Luina(commands.Bot):
         async def on_app_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
             developer_id = 442284517223301120
             developer = self.get_user(developer_id)
+            command = interaction.command.name if interaction.command else 'Unknown'
             if developer:
-                await developer.send(f"{interaction.user} / /{interaction.command.name if interaction.command else 'Unknown'} / {error}")
+                await developer.send(f"{interaction.user} / /{command} / {error}")
 
-            logger.exception(msg=interaction.command.name if interaction.command else 'Unknown', user = interaction.user)
+            logger.log_exception(msg=command, user = interaction.user.display_name)
             
             # 사용자에게 에러 알림 (이미 응답했는지 여부에 따라 처리)
             if interaction.response.is_done():
@@ -70,7 +80,7 @@ class Luina(commands.Bot):
         for filename in os.listdir('./cogs'): # cogs 폴더의 모든 파일을 불러옴
             if filename.endswith('.py') and not filename.startswith('__'): # .py로 끝나고 __로 시작하지 않는 파일만 불러옴
                 await self.load_extension(f'cogs.{filename[:-3]}') # 확장자를 제외한 파일 이름으로 cogs를 불러옴
-                logger.info(f"코그 로드 완료: cogs.{filename[:-3]}", "Discord")
+                logger.log_info(f"코그 로드 완료: cogs.{filename[:-3]}", "Discord")
 
 
 bot = Luina()
