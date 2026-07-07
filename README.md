@@ -27,8 +27,10 @@ Discord.py 기반 멀티 게임/유틸 디스코드 봇입니다.
 ├─ requirements.txt
 ├─ Procfile
 ├─ .python-version
+│
 ├─ config/
 │  └─ settings.py
+│
 ├─ cogs/
 │  ├─ general.py
 │  ├─ api.py
@@ -36,12 +38,24 @@ Discord.py 기반 멀티 게임/유틸 디스코드 봇입니다.
 │  ├─ lostark.py
 │  ├─ maplestory.py
 │  └─ help.py
+│
 ├─ utils/
 │  ├─ embed_builder.py
-│  └─ http_client.py
+│  ├─ http_client.py
+│  └─ logger.py              # 봇 내부 로그 기록
+│
+├─ web/
+│  ├─ __init__.py
+│  └─ log_drain.py           # aiohttp 서버 및 Log Drain 엔드포인트
+│
+├─ services/
+│  ├─ __init__.py
+│  ├─ firebase.py            # Firebase 공통 함수
+│  └─ log_service.py         # 로그 저장/삭제/Flush
+│
 ├─ data/
-│  ├─ kkuko_db.txt
-│  └─ maple_nickname.json
+│  └─ kkuko_db.txt
+│
 └─ history.txt
 ```
 
@@ -157,7 +171,7 @@ worker: python main.py
 주의:
 
 - `/메이플_등록`, `/메이플_랭킹`은 코드상 특정 길드에서만 동작하도록 제한되어 있습니다.
-- 등록 데이터는 `data/maple_nickname.json`에 저장됩니다.
+- 등록 데이터는 `Firebase`에 저장됩니다.
 
 ### 도움말 (`cogs/help.py`)
 
@@ -170,8 +184,6 @@ worker: python main.py
 	- 대용량 단어 사전 파일 (약 332,534 라인)
 	- 텍스트 기반 사전 데이터
 	- 끄투 코리아 DB
-- `data/maple_nickname.json`
-	- 메이플 닉네임 -> ocid 캐시 저장
 
 ## 유틸리티
 

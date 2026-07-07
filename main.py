@@ -1,10 +1,13 @@
-import discord # 디스코드
+import discord, asyncio
 from discord.ext import commands
 import os # 파일
-from config.settings import BOT_TOKEN # 설정값
 from datetime import datetime, timezone, timedelta # 시간
 import base64
 import re
+
+from utils.logger import logger
+from config.settings import BOT_TOKEN # 설정값
+from services.log_service import flush_task
 
 intents = discord.Intents.all() # 모든 권한
 
@@ -15,7 +18,8 @@ class Luina(commands.Bot):
         self.start_time = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S.%f")[:-4]
 
     async def on_ready(self):
-        print(f"로그인 완료: {self.user} ({self.start_time})")
+        logger.info(f"로그인 완료: {self.user} ({self.start_time})", "Discord")
+        asyncio.create_task(flush_task)
 
     async def on_message(self, message):
         if message.author.bot: # bot은 제외
@@ -55,7 +59,7 @@ class Luina(commands.Bot):
             if developer:
                 await developer.send(f"{interaction.user} / /{interaction.command.name if interaction.command else 'Unknown'} / {error}")
 
-            print(f"[에러] {interaction.user} / {error}")
+            logger.exception(msg=interaction.command.name if interaction.command else 'Unknown', user = interaction.user)
             
             # 사용자에게 에러 알림 (이미 응답했는지 여부에 따라 처리)
             if interaction.response.is_done():
@@ -66,7 +70,7 @@ class Luina(commands.Bot):
         for filename in os.listdir('./cogs'): # cogs 폴더의 모든 파일을 불러옴
             if filename.endswith('.py') and not filename.startswith('__'): # .py로 끝나고 __로 시작하지 않는 파일만 불러옴
                 await self.load_extension(f'cogs.{filename[:-3]}') # 확장자를 제외한 파일 이름으로 cogs를 불러옴
-                print(f"코그 로드 완료: cogs.{filename[:-3]}")
+                logger.info(f"코그 로드 완료: cogs.{filename[:-3]}", "Discord")
 
 
 bot = Luina()

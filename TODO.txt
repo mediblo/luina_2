@@ -1,0 +1,7 @@
+main.py:22 에서 asyncio.create_task(flush_task)로 코루틴 객체가 아니라 함수 자체를 넘기고 있어, 봇 준비 시점에 task 생성이 실패합니다.
+firebase.py:12 와 maplestory.py:24 에서 Firebase를 둘 다 초기화해서, 메이플 cog 로드 시 중복 초기화 예외가 날 수 있습니다. 같은 파일의 firebase.py:27는 import datetime 상태에서 datetime.now(KST)를 호출하고 있어 즉시 AttributeError가 납니다.
+riot.py:192 에서 match ID 요청 뒤에도 api_data == "RATE_LIMITED"를 검사하고 있어, rate limit 응답을 놓친 채 후속 로직이 잘못 진행될 수 있습니다.
+api.py:185 사전 조회는 결과 개수가 5개 미만이어도 무조건 5번 인덱싱해서 IndexError가 날 수 있습니다.
+general.py:281 Base64 디코딩은 잘못된 입력에 대한 예외 처리가 없고, general.py:62 계산기는 괄호 불일치, 잘못된 식, 0으로 나누기 같은 입력에서 그대로 터질 수 있습니다.
+lostark.py:100 근처의 날짜 파서는 tzinfo가 있는 ISO 문자열을 받으면 None을 반환해서, 종료일이 있는 이벤트를 상시 이벤트로 잘못 분류할 수 있습니다.
+firebase.py:23 과 main.py:22 처럼 raw logger에 추가 위치 인자를 넘기는 패턴이 있어 로그 포맷 에러가 날 수 있습니다. 이 패턴은 다른 초기화 로그에도 반복됩니다.

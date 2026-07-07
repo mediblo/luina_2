@@ -10,6 +10,7 @@ import json
 from config.settings import MAPLESTORY_API, FIREBASE_CREDENTIALS, FIREBASE_URL
 from utils.http_client import get_json, get_response
 from utils.embed_builder import build_simple_embed
+from utils.logger import logger
 
 class MapleCog(commands.Cog):
     def __init__(self, bot):
@@ -33,36 +34,36 @@ class MapleCog(commands.Cog):
         status = self.notices.status_code
 
         if 200 <= status < 300:
-            print(f"🟢 MapleStory_notice | Status: {status} (정상 연결)")
+            logger.info(f"🟢 MapleStory_notice | Status: {status} (정상 연결)")
         
         # 🟡 노랑 동그라미: 호출 제한 초과 (429) 또는 일시적 서버 에러 (500대)
         elif status == 429 or status >= 500:
-            print(f"🟡 MapleStory_notice | Status: {status} (호출 제한 또는 서버 지연)")
+            logger.info(f"🟡 MapleStory_notice | Status: {status} (호출 제한 또는 서버 지연)")
         
         # 🔴 빨강 동그라미: 인증 실패 (401, 403) 및 기타 잘못된 요청 (400대)
         else:
-            print(f"🔴 MapleStory_notice | Status: {status} (인증 실패 또는 잘못된 요청)")
+            logger.info(f"🔴 MapleStory_notice | Status: {status} (인증 실패 또는 잘못된 요청)")
 
         event_url = 'https://open.api.nexon.com/maplestory/v1/notice-event'
         self.events = await get_response(url=event_url, headers=self.headers)
         status = self.events.status_code
 
         if 200 <= status < 300:
-            print(f"🟢 MapleStory_event | Status: {status} (정상 연결)")
+            logger.info(f"🟢 MapleStory_event | Status: {status} (정상 연결)")
         
         # 🟡 노랑 동그라미: 호출 제한 초과 (429) 또는 일시적 서버 에러 (500대)
         elif status == 429 or status >= 500:
-            print(f"🟡 MapleStory_event | Status: {status} (호출 제한 또는 서버 지연)")
+            logger.info(f"🟡 MapleStory_event | Status: {status} (호출 제한 또는 서버 지연)")
         
         # 🔴 빨강 동그라미: 인증 실패 (401, 403) 및 기타 잘못된 요청 (400대)
         else:
-            print(f"🔴 MapleStory_event | Status: {status} (인증 실패 또는 잘못된 요청)")
+            logger.info(f"🔴 MapleStory_event | Status: {status} (인증 실패 또는 잘못된 요청)")
 
         is_connected = db.reference('connected').get()
         if is_connected:
-            print("🟢 Firebase (정상연결)")
+            logger.info("🟢 Firebase (정상연결)")
         else:
-            print("🔴 Firebase (연결 끊어짐)")
+            logger.info("🔴 Firebase (연결 끊어짐)")
 
 #########################################################################################################
 
