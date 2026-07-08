@@ -4,12 +4,11 @@ import os # 파일
 from datetime import datetime, timezone, timedelta # 시간
 import base64
 import re
-import signal
 
-from utils.logger import logger
+from utils.logger import log_info, log_exception
 from config.settings import BOT_TOKEN # 설정값
 from services.log_service import flush_task
-from core.lifecycle import graceful_shutdown
+from services.log_service import shutdown as log_shutdown
 
 intents = discord.Intents.all() # 모든 권한
 
@@ -20,15 +19,17 @@ class Luina(commands.Bot):
         self.start_time = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S.%f")[:-4]
 
     async def on_ready(self):
-        logger.log_info(f"로그인 완료: {self.user} ({self.start_time})", "Discord")
+        log_info(f"로그인 완료: {self.user} ({self.start_time})", "Discord")
         asyncio.create_task(flush_task())
 
-        loop = asyncio.get_running_loop()
+    async def close(self):
+        KST = timezone(timedelta(hours=9))
+        end_time = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S.%f")[:-4]
+        log_info(f"종료 프로세스 시작 ({end_time})", "Discord")
 
-        loop.add_signal_handler(
-            signal.SIGTERM,
-            lambda: asyncio.create_task(graceful_shutdown(bot))
-        )
+        await log_shutdown()
+
+        await super().close()
 
     async def on_message(self, message):
         if message.author.bot: # bot은 제외
@@ -69,7 +70,7 @@ class Luina(commands.Bot):
             if developer:
                 await developer.send(f"{interaction.user} / /{command} / {error}")
 
-            logger.log_exception(msg=command, user = interaction.user.display_name)
+            log_exception(msg=command, user = interaction.user.display_name)
             
             # 사용자에게 에러 알림 (이미 응답했는지 여부에 따라 처리)
             if interaction.response.is_done():
@@ -80,7 +81,7 @@ class Luina(commands.Bot):
         for filename in os.listdir('./cogs'): # cogs 폴더의 모든 파일을 불러옴
             if filename.endswith('.py') and not filename.startswith('__'): # .py로 끝나고 __로 시작하지 않는 파일만 불러옴
                 await self.load_extension(f'cogs.{filename[:-3]}') # 확장자를 제외한 파일 이름으로 cogs를 불러옴
-                logger.log_info(f"코그 로드 완료: cogs.{filename[:-3]}", "Discord")
+                log_info(f"코그 로드 완료: cogs.{filename[:-3]}", "Discord")
 
 
 bot = Luina()

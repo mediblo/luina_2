@@ -50,11 +50,13 @@ class ApiCog(commands.Cog):
         app_commands.Choice(name="비공개", value=0)
     ])
     async def weather(self, interaction: discord.Interaction, 지역:str, 공개여부: int = 1):
-        api_url = f'http://api.openweathermap.org/geo/1.0/direct?q={지역}&limit=5&appid={OPENWEATHERMAP_API}' # 동일 이름 최대 5개 서치 (Direct geocoding )
-        api_data = await get_json(api_url)
-        location = {}
         공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
         await interaction.response.defer(ephemeral=공개여부)
+
+        api_url = f'http://api.openweathermap.org/geo/1.0/direct?q={지역}&limit=5&appid={OPENWEATHERMAP_API}' # 동일 이름 최대 5개 서치 (Direct geocoding )
+        api_data = await get_json(api_url)
+
+        location = {}
         for x in api_data:
             if x['country'] == 'KR':
                 api_url = f"https://api.openweathermap.org/data/2.5/weather?lat={x['lat']}&lon={x['lon']}&appid={OPENWEATHERMAP_API}" # 날씨 정보 ( current weather data )
@@ -169,10 +171,11 @@ class ApiCog(commands.Cog):
         app_commands.Choice(name="비공개", value=0)
     ])
     async def word_dictonary(self, interaction: discord.Interaction, 단어:str, 공개여부: int = 1):
-        api_url=f'https://kli.korean.go.kr/term/api/search.do?key={ON_WORD_API}&apiSearchWord={단어}&sort=wt&start=1&num=5'
-        api_data = await get_json(api_url)
         공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
         await interaction.response.defer(ephemeral=공개여부)
+        
+        api_url=f'https://kli.korean.go.kr/term/api/search.do?key={ON_WORD_API}&apiSearchWord={단어}&sort=wt&start=1&num=5'
+        api_data = await get_json(api_url)
 
         if api_data['channel'].get('returnCode') == "1":
             await interaction.followup.send(api_data['channel']['return_object'])

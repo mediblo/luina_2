@@ -82,7 +82,7 @@ class MapleCog(commands.Cog):
         ref.set(ocid) # 추가
 
         developer_id = 442284517223301120
-        developer = self.bot.get_user(developer_id)
+        developer = self.bot.get_user(developer_id) or await self.bot.fetch_user(developer_id)
         await developer.send(f"{interaction.user} 님이 {닉네임} 닉네임을 등록했습니다.\nOCID: {api_data['ocid']}")
         await interaction.followup.send('등록 완료!')
 
