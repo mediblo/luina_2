@@ -4,11 +4,6 @@ import asyncio
 
 from config.settings import LOG_FLUSH_INTERVAL, LOG_MAX_BUFFER_COUNT
 
-from services.firebase import (
-    save_logs,
-    delete_old_logs
-)
-
 # day -> hour -> list[str]
 _buffer = defaultdict(lambda: defaultdict(list))
 _buffer_count = 0
@@ -55,6 +50,7 @@ async def flush():
         _buffer_count = 0
 
     try:
+        from services.firebase import save_logs
         for day, hours in logs.items():
             for hour, log_list in hours.items():
                 await save_logs(
@@ -92,8 +88,8 @@ async def startup():
     """
     봇 시작 시 실행
     """
+    from services.firebase import delete_old_logs
     await delete_old_logs()
-    print("test")
 
 
 async def shutdown():
@@ -101,4 +97,3 @@ async def shutdown():
     종료 직전 실행
     """
     await flush()
-    print("test1")

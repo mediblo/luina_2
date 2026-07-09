@@ -18,7 +18,7 @@ else:
 
 
 async def save_logs(day: str, hour:str, logs: list[str]):
-    db.reference(f'logs/{day}/{hour}').set(logs)
+    db.reference(f'logs/{day}/{hour}').push(logs)
     log_info(f"로그 {len(logs)}개 저장", "Firebase")
 
 async def delete_old_logs():
