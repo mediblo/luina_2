@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import asyncio
 
 from config.settings import LOG_FLUSH_INTERVAL, LOG_MAX_BUFFER_COUNT
@@ -13,8 +13,9 @@ _flush_lock = asyncio.Lock()
 
 def append(log: str):
     global _buffer_count
-
-    now = datetime.now()
+    
+    KST = timezone(timedelta(hours=9))
+    now = datetime.now(KST)
 
     day = now.strftime("%Y-%m-%d")
     hour = now.strftime("%H")
@@ -60,8 +61,8 @@ async def flush():
                 )
 
     except Exception as e:
-        
-        msg = f"[{datetime.now().strftime('%H-%M-%S')}][Logger] [EXCEPTION] Firebase 로그 저장 실패: {e}"
+        KST = timezone(timedelta(hours=9))
+        msg = f"[{datetime.now(KST).strftime('%H-%M-%S')}][Logger] [EXCEPTION] Firebase 로그 저장 실패: {e}"
         print(msg)
 
         # 저장 실패 시 로그 복구
@@ -72,8 +73,8 @@ async def flush():
                     _buffer[day][hour].extend(log_list)
                     _buffer_count += len(log_list)
 
-            now_day = datetime.now().strftime("%Y-%m-%d")
-            now_hour = datetime.now().strftime("%H")
+            now_day = datetime.now(KST).strftime("%Y-%m-%d")
+            now_hour = datetime.now(KST).strftime("%H")
             _buffer[now_day][now_hour].append(msg)
             _buffer_count += 1        
 
