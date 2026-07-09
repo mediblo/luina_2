@@ -86,6 +86,7 @@ async def startup():
     봇 시작 시 실행
     """
     await delete_old_logs()
+    print("test")
 
 
 async def shutdown():
@@ -93,3 +94,4 @@ async def shutdown():
     종료 직전 실행
     """
     await flush()
+    print("test1")

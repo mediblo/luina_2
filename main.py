@@ -7,7 +7,7 @@ import re
 
 from utils.logger import log_info, log_exception
 from config.settings import BOT_TOKEN # 설정값
-from services.log_service import flush_task
+from services.log_service import flush_task, startup
 from services.log_service import shutdown as log_shutdown
 
 intents = discord.Intents.all() # 모든 권한
@@ -20,6 +20,7 @@ class Luina(commands.Bot):
 
     async def on_ready(self):
         log_info(f"로그인 완료: {self.user} ({self.start_time})", "Discord")
+        await startup() # 1달 된 로그 삭제
         asyncio.create_task(flush_task())
 
     async def close(self):

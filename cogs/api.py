@@ -30,15 +30,15 @@ class ApiCog(commands.Cog):
             api_data = await get_response(api_url[i])
             status = api_data.status_code
             if 200 <= status < 300:
-                log_info(f"🟢 {api_name[i]} | Status: {status} (정상 연결)", "api", api_name)
+                log_info(f"🟢 {api_name[i]} | Status: {status} (정상 연결)", "Api")
             
             # 🟡 노랑 동그라미: 호출 제한 초과 (429) 또는 일시적 서버 에러 (500대)
             elif status == 429 or status >= 500:
-                log_info(f"🟡 {api_name[i]} | Status: {status} (호출 제한 또는 서버 지연)", "api", api_name)
+                log_info(f"🟡 {api_name[i]} | Status: {status} (호출 제한 또는 서버 지연)", "Api")
             
             # 🔴 빨강 동그라미: 인증 실패 (401, 403) 및 기타 잘못된 요청 (400대)
             else:
-                log_info(f"🔴 {api_name[i]} | Status: {status} (인증 실패 또는 잘못된 요청)", "api", api_name)
+                log_info(f"🔴 {api_name[i]} | Status: {status} (인증 실패 또는 잘못된 요청)", "Api")
 
 #########################################################################################################
 

@@ -1,5 +1,6 @@
 import logging
 import sys
+from datetime import datetime
 
 logger = logging.getLogger("discord_bot")
 
@@ -20,23 +21,24 @@ if not logger.handlers:
 # 상위 Logger로 전달 방지
 logger.propagate = False
 
-def _build_message(message: str, source: str, user: str | None = None) -> str:
-    if user:
-        return f"[{source}] [{user}] {message}"
-    return f"[{source}] {message}"
+def _build_message(level: str, message: str, source: str, user: str | None = None) -> str:
+    msg = f"[{source}] [{user}] {message}" if user else f"[{source}] {message}"
+    current_time = datetime.now().strftime("%H:%M:%S")
+    
+    return msg
 
 
 def log_info(message: str, source: str = "System", user: str | None = None):
-    logger.info(_build_message(message, source, user))
+    logger.info(_build_message("INFO", message, source, user))
 
 
 def log_warning(message: str, source: str = "System", user: str | None = None):
-    logger.warning(_build_message(message, source, user))
+    logger.warning(_build_message("WARNING", message, source, user))
 
 
 def log_error(message: str, source: str = "System", user: str |None = None):
-    logger.error(_build_message(message, source, user))
+    logger.error(_build_message("ERROR", message, source, user))
 
 
 def log_exception(message: str, source: str = "System", user: str | None = None): # Only Exception
-    logger.exception(_build_message(message, source, user))
+    logger.exception(_build_message("EXCEPTION", message, source, user))
