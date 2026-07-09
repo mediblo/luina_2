@@ -1,15 +1,13 @@
 import discord, asyncio
 from discord.ext import commands
 from discord import app_commands
-import firebase_admin
-from firebase_admin import credentials
 from firebase_admin import db
 from datetime import datetime, timedelta, timezone
-import json
 
-from config.settings import MAPLESTORY_API, FIREBASE_CREDENTIALS, FIREBASE_URL
+from config.settings import MAPLESTORY_API
 from utils.http_client import get_json, get_response
 from utils.embed_builder import build_simple_embed
+from utils.logger import log_info
 
 class MapleCog(commands.Cog):
     def __init__(self, bot):
@@ -21,11 +19,6 @@ class MapleCog(commands.Cog):
         self.time = datetime.now().strftime("%Y-%m-%d")
         self.notices = None
         self.events = None
-
-        cred = credentials.Certificate(json.loads(FIREBASE_CREDENTIALS))
-        firebase_admin.initialize_app(cred, {
-            'databaseURL': FIREBASE_URL # 본인 DB URL 입력
-        })
         
     async def cog_load(self):
         notice_url = 'https://open.api.nexon.com/maplestory/v1/notice'
@@ -33,36 +26,30 @@ class MapleCog(commands.Cog):
         status = self.notices.status_code
 
         if 200 <= status < 300:
-            print(f"🟢 MapleStory_notice | Status: {status} (정상 연결)")
+            log_info(f"🟢 MapleStory_notice | Status: {status} (정상 연결)", "Api")
         
         # 🟡 노랑 동그라미: 호출 제한 초과 (429) 또는 일시적 서버 에러 (500대)
         elif status == 429 or status >= 500:
-            print(f"🟡 MapleStory_notice | Status: {status} (호출 제한 또는 서버 지연)")
+            log_info(f"🟡 MapleStory_notice | Status: {status} (호출 제한 또는 서버 지연)", "Api")
         
         # 🔴 빨강 동그라미: 인증 실패 (401, 403) 및 기타 잘못된 요청 (400대)
         else:
-            print(f"🔴 MapleStory_notice | Status: {status} (인증 실패 또는 잘못된 요청)")
+            log_info(f"🔴 MapleStory_notice | Status: {status} (인증 실패 또는 잘못된 요청)", "Api")
 
         event_url = 'https://open.api.nexon.com/maplestory/v1/notice-event'
         self.events = await get_response(url=event_url, headers=self.headers)
         status = self.events.status_code
 
         if 200 <= status < 300:
-            print(f"🟢 MapleStory_event | Status: {status} (정상 연결)")
+            log_info(f"🟢 MapleStory_event | Status: {status} (정상 연결)")
         
         # 🟡 노랑 동그라미: 호출 제한 초과 (429) 또는 일시적 서버 에러 (500대)
         elif status == 429 or status >= 500:
-            print(f"🟡 MapleStory_event | Status: {status} (호출 제한 또는 서버 지연)")
+            log_info(f"🟡 MapleStory_event | Status: {status} (호출 제한 또는 서버 지연)")
         
         # 🔴 빨강 동그라미: 인증 실패 (401, 403) 및 기타 잘못된 요청 (400대)
         else:
-            print(f"🔴 MapleStory_event | Status: {status} (인증 실패 또는 잘못된 요청)")
-
-        is_connected = db.reference('connected').get()
-        if is_connected:
-            print("🟢 Firebase (정상연결)")
-        else:
-            print("🔴 Firebase (연결 끊어짐)")
+            log_info(f"🔴 MapleStory_event | Status: {status} (인증 실패 또는 잘못된 요청)")
 
 #########################################################################################################
 
@@ -95,7 +82,7 @@ class MapleCog(commands.Cog):
         ref.set(ocid) # 추가
 
         developer_id = 442284517223301120
-        developer = self.bot.get_user(developer_id)
+        developer = self.bot.get_user(developer_id) or await self.bot.fetch_user(developer_id)
         await developer.send(f"{interaction.user} 님이 {닉네임} 닉네임을 등록했습니다.\nOCID: {api_data['ocid']}")
         await interaction.followup.send('등록 완료!')
 

@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 from collections import deque
 from typing import Optional
+import operator as op_module
 import time
 import random
 import asyncio
@@ -27,7 +28,6 @@ class General(commands.Cog):
         embed.add_field(name= "탄생일", value= "2020년 7월 26일")
         embed.add_field(name= "V2.0", value= "2026년 6월 15일", inline=False)
         embed.add_field(name= "제작자 이메일", value= "jjssog@naver.com\n-# 이메일은 자주 확인을 하지 않습니다.", inline=False)
-        embed.add_field(name= "프로필 사진 출처", value= "라스트오리진 아르망 추기경", inline=False)
         embed.add_field(name= "블로그 URL", value= "https://blog.naver.com/jjssog")
         embed.add_field(name= "Velog URL", value= "https://velog.io/@mediblo/posts")
         embed.set_footer(text= "오류나 건의사항은 제보해주시기 바랍니다")
@@ -67,28 +67,30 @@ class General(commands.Cog):
     @app_commands.command(name="계산기", description="일련의 식을 계산합니다.") # 계산기 260616
     @app_commands.describe(식="일련의 식을 입력합니다 (2+4*4)")
     async def calculator(self, interaction: discord.Interaction, 식: str):
-        msg = 식.replace(' ', '')  # 공백 제거
+        msg = 식.replace(' ', '')
 
-        def cal(num_a: float, num_b: float, op: str):
-            operations = {
-                "+": num_a + num_b,
-                "-": num_a - num_b,
-                "*": num_a * num_b,
-                "/": num_a / num_b,
-                "%": num_a % num_b
-            }
-            return operations.get(op, 0.0)
-
-        # 연산자 우선순위 정의 (숫자가 높을수록 우선순위가 높음)
-        # 괄호 '('는 스택 내부에서는 가장 낮은 우선순위를 가집니다.
+        # 파이썬 내장 연산자 모듈을 사용하여 딕셔너리를 함수 외부에 한 번만 정의 (성능 최적화)
+        operations = {
+            "+": op_module.add,
+            "-": op_module.sub,
+            "*": op_module.mul,
+            "/": op_module.truediv,
+            "%": op_module.mod
+        }
+        
         prec = {'*': 3, '/': 3, '%': 3, '+': 2, '-': 2, '(': 1}
 
-        operator = []
+        operator_stack = []
         postfix = deque()
-
         temp = ""
-        for x in msg:
+        prev_char = ''  # 이전 문자를 기억하여 음수(단항 연산자) 판별에 사용
+
+        # 1. 중위 표기법 -> 후위 표기법 변환
+        for i, x in enumerate(msg):
             if x.isdigit() or x == '.':
+                temp += x
+            # 💡 핵심: '-'가 맨 처음에 오거나, 연산자/여는 괄호 바로 뒤에 오면 음수로 취급
+            elif x == '-' and (i == 0 or prev_char in "+-*/%("):
                 temp += x
             else:
                 if temp:
@@ -96,40 +98,57 @@ class General(commands.Cog):
                     temp = ""
                 
                 if x == '(':
-                    operator.append(x)
+                    operator_stack.append(x)
                 elif x == ')':
-                    # 닫는 괄호면 여는 괄호를 만날 때까지 모두 pop
-                    while operator and operator[-1] != '(':
-                        postfix.append(operator.pop())
-                    if operator: 
-                        operator.pop() # '(' 제거
+                    while operator_stack and operator_stack[-1] != '(':
+                        postfix.append(operator_stack.pop())
+                    if operator_stack:
+                        operator_stack.pop() # '(' 제거
+                    else:
+                        await interaction.response.send_message("괄호의 짝이 맞지 않습니다.")
+                        return
+                elif x in prec:
+                    while operator_stack and prec[operator_stack[-1]] >= prec[x]:
+                        postfix.append(operator_stack.pop())
+                    operator_stack.append(x)
                 else:
-                    # 현재 연산자(x)의 우선순위가 스택 최상단(operator[-1])의 우선순위보다 
-                    # 작거나 같으면, 스택에서 꺼내서 postfix에 넣음
-                    while operator and prec[operator[-1]] >= prec[x]:
-                        postfix.append(operator.pop())
-                    operator.append(x)
+                    await interaction.response.send_message(f"허용되지 않은 문자입니다: {x}")
+                    return
+            
+            prev_char = x  # 현재 문자를 이전 문자로 저장
 
-        # 1. 반복문이 끝난 후 남아있는 숫자 처리
         if temp:
+            if temp == "-": # "-" 기호만 덩그러니 남은 경우 방지
+                await interaction.response.send_message("잘못된 수식입니다.")
+                return
             postfix.append(float(temp))
 
-        # 2. 스택에 남아있는 모든 연산자 처리
-        while operator:
-            postfix.append(operator.pop())
+        while operator_stack:
+            op = operator_stack.pop()
+            if op == '(':
+                await interaction.response.send_message("괄호의 짝이 맞지 않습니다.")
+                return
+            postfix.append(op)
 
+        # 2. 후위 표기법 계산
         calc = []
-        while postfix:
-            token = postfix.popleft()
-    
+        for token in postfix:
             if isinstance(token, float):
                 calc.append(token)
             else:
-                # 스택 구조상 뒤에 있는 숫자(오른쪽 피연산자)가 먼저 pop됩니다.
+                # 피연산자가 부족한 경우 (예: "3 + * 5")
+                if len(calc) < 2:
+                    await interaction.response.send_message("수식의 형식이 올바르지 않습니다.")
+                    return
+                
                 num_b = calc.pop()
                 num_a = calc.pop()
                 
-                result = cal(num_a, num_b, token)
+                if token == '/' and num_b == 0:
+                    await interaction.response.send_message("0으로 나눌 수 없습니다.")
+                    return
+                    
+                result = operations[token](num_a, num_b)
                 calc.append(result)
         
         embed_result = build_simple_embed(
@@ -137,7 +156,7 @@ class General(commands.Cog):
             description=f"🔢 계산 결과"
         )
         embed_result.add_field(name = "입력한 식", value = msg.replace('*', '\\*'), inline = False)
-        embed_result.add_field(name = "계산된 값", value = f"{calc[0]:.2f}")
+        embed_result.add_field(name = "계산된 값", value = f"{calc[0] if calc[0].is_integer() else calc[0]:.2f }")
 
         # 2. send_message의 embed 인자에 전달
         await interaction.response.send_message(embed=embed_result, ephemeral=True)

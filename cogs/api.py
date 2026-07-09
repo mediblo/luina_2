@@ -9,6 +9,7 @@ import re
 from config.settings import OPENWEATHERMAP_API, EXCHANGERATE_API, ON_WORD_API, GENIUS_API
 from utils.embed_builder import build_simple_embed
 from utils.http_client import get_json, get_response
+from utils.logger import log_info
 
 class ApiCog(commands.Cog):
     def __init__(self, bot):
@@ -29,15 +30,15 @@ class ApiCog(commands.Cog):
             api_data = await get_response(api_url[i])
             status = api_data.status_code
             if 200 <= status < 300:
-                print(f"🟢 {api_name[i]} | Status: {status} (정상 연결)")
+                log_info(f"🟢 {api_name[i]} | Status: {status} (정상 연결)", "Api")
             
             # 🟡 노랑 동그라미: 호출 제한 초과 (429) 또는 일시적 서버 에러 (500대)
             elif status == 429 or status >= 500:
-                print(f"🟡 {api_name[i]} | Status: {status} (호출 제한 또는 서버 지연)")
+                log_info(f"🟡 {api_name[i]} | Status: {status} (호출 제한 또는 서버 지연)", "Api")
             
             # 🔴 빨강 동그라미: 인증 실패 (401, 403) 및 기타 잘못된 요청 (400대)
             else:
-                print(f"🔴 {api_name[i]} | Status: {status} (인증 실패 또는 잘못된 요청)")
+                log_info(f"🔴 {api_name[i]} | Status: {status} (인증 실패 또는 잘못된 요청)", "Api")
 
 #########################################################################################################
 
@@ -49,11 +50,13 @@ class ApiCog(commands.Cog):
         app_commands.Choice(name="비공개", value=0)
     ])
     async def weather(self, interaction: discord.Interaction, 지역:str, 공개여부: int = 1):
-        api_url = f'http://api.openweathermap.org/geo/1.0/direct?q={지역}&limit=5&appid={OPENWEATHERMAP_API}' # 동일 이름 최대 5개 서치 (Direct geocoding )
-        api_data = await get_json(api_url)
-        location = {}
         공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
         await interaction.response.defer(ephemeral=공개여부)
+
+        api_url = f'http://api.openweathermap.org/geo/1.0/direct?q={지역}&limit=5&appid={OPENWEATHERMAP_API}' # 동일 이름 최대 5개 서치 (Direct geocoding )
+        api_data = await get_json(api_url)
+
+        location = {}
         for x in api_data:
             if x['country'] == 'KR':
                 api_url = f"https://api.openweathermap.org/data/2.5/weather?lat={x['lat']}&lon={x['lon']}&appid={OPENWEATHERMAP_API}" # 날씨 정보 ( current weather data )
@@ -168,10 +171,11 @@ class ApiCog(commands.Cog):
         app_commands.Choice(name="비공개", value=0)
     ])
     async def word_dictonary(self, interaction: discord.Interaction, 단어:str, 공개여부: int = 1):
-        api_url=f'https://kli.korean.go.kr/term/api/search.do?key={ON_WORD_API}&apiSearchWord={단어}&sort=wt&start=1&num=5'
-        api_data = await get_json(api_url)
         공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
         await interaction.response.defer(ephemeral=공개여부)
+        
+        api_url=f'https://kli.korean.go.kr/term/api/search.do?key={ON_WORD_API}&apiSearchWord={단어}&sort=wt&start=1&num=5'
+        api_data = await get_json(api_url)
 
         if api_data['channel'].get('returnCode') == "1":
             await interaction.followup.send(api_data['channel']['return_object'])
@@ -179,10 +183,9 @@ class ApiCog(commands.Cog):
 
         words = []
         word_idx = 0
-        for i in range(5):
+        for data in api_data['channel']['return_object'][0]['resultlist']:
             word_data = {}
         
-            data = api_data['channel']['return_object'][0]['resultlist'][i]
             word_data['word'] = data['word']
             word_data['description'] = data['definition']
             word_data['category'] = f"{data['category_main']} > {data['category_sub']}"

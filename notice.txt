@@ -4,4 +4,4 @@ Riot Games Limit
 
 MapleStory Limit
     1s : 5
-    
+    1d : 1,000
