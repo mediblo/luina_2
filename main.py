@@ -5,7 +5,7 @@ from datetime import datetime, timezone, timedelta # 시간
 import base64
 import re
 
-from utils.logger import log_info, log_exception
+from utils.logger import log_info, log_warning
 from config.settings import BOT_TOKEN # 설정값
 from services.log_service import flush_task, startup
 from services.log_service import shutdown as log_shutdown
@@ -71,7 +71,7 @@ class Luina(commands.Bot):
             if developer:
                 await developer.send(f"{interaction.user} / /{command} / {error}")
 
-            log_exception(msg=command, user = interaction.user.display_name)
+            log_warning(msg=command, user = interaction.user.display_name)
             
             # 사용자에게 에러 알림 (이미 응답했는지 여부에 따라 처리)
             if interaction.response.is_done():
