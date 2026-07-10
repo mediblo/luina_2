@@ -4,6 +4,8 @@ from datetime import datetime, timezone, timedelta
 
 from services.log_service import append
 
+logging.Formatter.converter = lambda *args: datetime.now(timezone(timedelta(hours=9))).timetuple()
+
 logger = logging.getLogger("discord_bot")
 
 # 이미 Handler가 등록되어 있으면 중복 등록 방지
@@ -25,8 +27,7 @@ logger.propagate = False
 
 def _build_message(level: str, message: str, source: str, user: str | None = None) -> str:
     msg = f"[{source}] [{user}] {message}" if user else f"[{source}] {message}"
-    KST = timezone(timedelta(hours=9))
-    current_time = datetime.now(KST).strftime("%H:%M:%S")
+    current_time = datetime.now().strftime("%H:%M:%S")
     append(f"[{current_time}] {msg}")
     
     return msg
