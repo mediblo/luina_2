@@ -325,6 +325,9 @@ class RiotCog(commands.Cog):
     )
     async def lol_info(self, interaction: discord.Interaction, 닉네임:str, 공개여부: int = 1):
         nickname = 닉네임.split('#')
+        if len(nickname) < 2:
+            await interaction.response.send_message(content="닉네임에 태그(#)를 포함해 주세요. (예: 닉네임#KR1)", ephemeral=True)
+            return
         TIER_MAP = {'IRON' : 'I', 'BRONZE' : 'B', 'SILVER' : 'S',
                     'GOLD' : 'G', 'PLATINUM' : 'P', 'EMERALD' : 'E',
                     'DIAMOND' : 'D', 'MASTER' : 'M', 'GRANDMASTER' : 'GM',
@@ -342,7 +345,7 @@ class RiotCog(commands.Cog):
         if api_data == "RATE_LIMITED": 
             return
         
-
+        print(api_data.get('status', {}).get('status_code'))
         if api_data.get('status', {}).get('status_code') == 404:
             await interaction.followup.send(content="유저를 찾을 수 없습니다. 닉네임과 태그를 정확히 입력했는지 확인해주세요.")
             return
