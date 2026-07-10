@@ -1,6 +1,6 @@
 import logging
 import sys
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 from services.log_service import append
 
@@ -25,7 +25,8 @@ logger.propagate = False
 
 def _build_message(level: str, message: str, source: str, user: str | None = None) -> str:
     msg = f"[{source}] [{user}] {message}" if user else f"[{source}] {message}"
-    current_time = datetime.now().strftime("%H:%M:%S")
+    KST = timezone(timedelta(hours=9))
+    current_time = datetime.now(KST).strftime("%H:%M:%S")
     append(f"[{current_time}] {msg}")
     
     return msg
