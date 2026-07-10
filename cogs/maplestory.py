@@ -94,23 +94,39 @@ class MapleCog(commands.Cog):
             await interaction.response.send_message('개발중인 명령어 입니다.', ephemeral=True)
             return
         
-        
+        server_characters = db.reference('maple_character').get() or {}
+        if not server_characters:
+            await interaction.response.send_message('등록된 캐릭터가 없습니다.', ephemeral=True)
+            return
+
         await interaction.response.defer()
         stat_url = 'https://open.api.nexon.com/maplestory/v1/character/stat?ocid='
-        rank_url = f'https://open.api.nexon.com/maplestory/v1/ranking/overall?date={self.time}&ocid='
+        info_url = 'https://open.api.nexon.com/maplestory/v1/character/basic?ocid='
 
         data=[]
-        for nickname, ocid in (db.reference('maple_character').get() or {}).items():
+        for nickname, ocid in server_characters.items():
             stat_api = await get_json(url=(stat_url+ocid), headers=self.headers)
-            rank_api = await get_json(url=(rank_url+ocid), headers=self.headers)
-            if not rank_api['ranking'] or not stat_api['final_stat']:
+            if stat_api.get("error"): # 없어진 캐릭터면 삭제하고 continue
+                log_info(f"닉네임 {nickname} 삭제됨 (OCID: {ocid}) - 캐릭터 정보 없음", "MapleRanking")
+                db.reference('maple_character').child(nickname).delete()
+                await asyncio.sleep(0.1)
+                continue
+
+            info_api = await get_json(url=(info_url+ocid), headers=self.headers)
+
+            if info_api["character_name"] != nickname: # 닉변한 경우
+                log_info(f"닉네임 {nickname} -> {info_api['character_name']} (OCID: {ocid}) - 닉네임 변경 감지", "MapleRanking")
+                db.reference('maple_character').child(nickname).delete()
+                db.reference('maple_character').child(info_api["character_name"]).set(ocid)
+
+            if not info_api or not stat_api['final_stat']:
                 continue
 
             power = int(stat_api['final_stat'][-2]['stat_value'])
 
             data.append({
-                "power": power,
-                "rank_info": rank_api['ranking'][0],
+                "power": power, # 전투력
+                "info": info_api, # world_name, character_class, character_level, character_guild_name, character_image
             })
             await asyncio.sleep(0.3)
 
@@ -120,21 +136,21 @@ class MapleCog(commands.Cog):
         # 2. 디스코드 임베드 생성
         embed = build_simple_embed(
             title="🍁 메이플스토리 캐릭터 전투력 랭킹",
-            description=f"조회 기준일: `{self.time}`\n등록된 캐릭터들간의 랭킹 정보입니다."
+            description=f"등록된 캐릭터들간의 랭킹 정보입니다."
         )
 
-        # 3. 정렬된 데이터를 돌며 임베드에 필드 추가
-        for idx, item in enumerate(data, start=1):
-            # ranking 리스트 안의 첫 번째 캐릭터 정보 추출
-            char_data = item['rank_info']
-            
-            global_rank = int(char_data["ranking"])
-            format_rank = f"{global_rank:,}"
+        embed.set_thumbnail(url=data[0]['info']['character_image'])  # 가장 높은 전투력 캐릭터의 이미지로 썸네일 설정
 
+        # 3. 정렬된 데이터를 돌며 임베드에 필드 추가
+        for idx, item in enumerate(data[:10], start=1):
+            # ranking 리스트 안의 첫 번째 캐릭터 정보 추출
+            char_data = item['info']
+            
             name = char_data['character_name']
             level = char_data['character_level']
-            job = char_data['class_name']
-            guild = char_data['character_guildname'] or "없음"
+            job = char_data['character_class']
+            guild = char_data['character_guild_name'] or "없음"
+            world = char_data['world_name']
             
             # 전투력(str -> int 변환 후 천 단위 쉼표 추가)
             power_val = item["power"]
@@ -154,19 +170,18 @@ class MapleCog(commands.Cog):
             field_value = (
                 f"**Lv.{level}** | {job}\n"
                 f"길드: `{guild}`\n"
+                f"월드: `{world}`\n"
                 f"전투력: **{formatted_power}**"
             )
 
             # 필드 추가 (Inline=False로 해서 한 줄에 하나씩 깔끔하게 떨어지게 설정)
             embed.add_field(
-                name=f"{rank_emoji} {idx}위 ({format_rank}위) - {name}",
+                name=f"{rank_emoji} {idx}위 - {name}",
                 value=field_value,
-                inline=False
+                inline=True
             )
-
-        # 봇의 프로필 사진이 있다면 썸네일로 추가 (선택 사항)
-        if self.bot.user.avatar:
-            embed.set_thumbnail(url=self.bot.user.avatar.url)
+            if idx % 2 == 0:
+                embed.add_field(name="\u200b", value="\u200b", inline=True)  # 빈 필드 추가로 레이아웃 조정
             
         embed.set_footer(text="Nexon Open API 제공")
 

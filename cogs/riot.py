@@ -345,7 +345,6 @@ class RiotCog(commands.Cog):
         if api_data == "RATE_LIMITED": 
             return
         
-        print(api_data.get('status', {}).get('status_code'))
         if api_data.get('status', {}).get('status_code') == 404:
             await interaction.followup.send(content="유저를 찾을 수 없습니다. 닉네임과 태그를 정확히 입력했는지 확인해주세요.")
             return

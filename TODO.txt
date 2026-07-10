@@ -1,3 +1,0 @@
-높음:   riot.py:185에서 매치 ID를 받아온 뒤에도 if api_data == "RATE_LIMITED"를 검사합니다. 여기서는 matchs를 검사해야 해서,
-        레이트리밋 상황에서 문자열을 match ID 목록처럼 순회하는 잘못된 흐름으로 들어갈 수 있습니다.
-중간: lostark.py:104의 parse_end_date는 tzinfo가 있는 ISO 문자열이면 return이 없어 None을 돌려줍니다. 실제 종료일 데이터가 시간대 포함으로 오면 이벤트가 조용히 누락됩니다.
