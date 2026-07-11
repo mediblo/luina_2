@@ -83,7 +83,7 @@ class MapleCog(commands.Cog):
 
         developer_id = 442284517223301120
         developer = self.bot.get_user(developer_id) or await self.bot.fetch_user(developer_id)
-        await developer.send(f"{interaction.user} 님이 {닉네임} 닉네임을 등록했습니다.\nOCID: {api_data['ocid']}")
+        await developer.send(f"{interaction.user} 님이 {interaction.guild.name}에 {닉네임} 닉네임을 등록했습니다.\n")
         await interaction.followup.send('등록 완료!')
 
 #########################################################################################################
@@ -102,7 +102,7 @@ class MapleCog(commands.Cog):
 
         developer_id = 442284517223301120
         developer = self.bot.get_user(developer_id) or await self.bot.fetch_user(developer_id)
-        await developer.send(f"{interaction.user} 님이 {닉네임} 닉네임을 삭제했습니다.")
+        await developer.send(f"{interaction.user}님이 {interaction.guild.name}에 {닉네임} 닉네임을 삭제했습니다.")
         await interaction.response.send('삭제 완료!', ephemeral=True)
 
 #########################################################################################################
