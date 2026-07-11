@@ -33,8 +33,7 @@ Discord.py 기반 멀티 게임/유틸 디스코드 봇입니다.
 ├─ TODO.txt
 ├─ notice.txt
 ├─ character_sheet.md        # 🎭 루이나 캐릭터 설정 시트
-├─ how_to_use.md             # 📚 사용자 명령어 설명서
-├─ how_to_use2.md            # 🌙 루이나 컨셉 반영 사용 설명서
+├─ how_to_use.md            # 🌙 루이나 컨셉 반영 사용 설명서
 │
 ├─ config/
 │  └─ settings.py

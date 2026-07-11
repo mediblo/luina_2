@@ -3,11 +3,17 @@ from discord.ext import commands
 from discord import app_commands
 from firebase_admin import db
 from datetime import datetime, timedelta, timezone
+from aiolimiter import AsyncLimiter
+import time
 
 from config.settings import MAPLESTORY_API
 from utils.http_client import get_json, get_response
 from utils.embed_builder import build_simple_embed
 from utils.logger import log_info
+
+class RateLimitError(Exception):
+    def __init__(self, wait_time):
+        self.wait_time = wait_time
 
 class MapleCog(commands.Cog):
     def __init__(self, bot):
@@ -16,6 +22,7 @@ class MapleCog(commands.Cog):
             'accept': 'application/json',
             'x-nxopen-api-key' : MAPLESTORY_API
         }
+        self.limiter = AsyncLimiter(max_rate=500, time_period=1)
         self.time = datetime.now().strftime("%Y-%m-%d")
         self.notices = None
         self.events = None
@@ -51,6 +58,39 @@ class MapleCog(commands.Cog):
         else:
             log_info(f"🔴 MapleStory_event | Status: {status} (인증 실패 또는 잘못된 요청)")
 
+    def _check_rate_limit(self):
+        """
+        MapleStory API Rate Limit을 체크하는 공통 헬퍼 메서드.
+        제한에 걸렸다면 정확한 대기 시간을 계산해 RateLimitError를 발생시킵니다.
+        """
+        if not self.limiter.has_capacity():
+            # 현재 이벤트 루프 시간 기준 계산
+            current_time = self.limiter._loop.time()
+            wait_time = self.limiter._rate_limit_per_item - (current_time - self.limiter._last_check)
+            
+            # 타이머 오차 방지용 보정 계산
+            if wait_time <= 0:
+                wait_time = max(0.1, self.limiter.time_period - (time.time() % self.limiter.time_period))
+            
+            raise RateLimitError(wait_time)
+        
+    async def request_api(self, interaction, url):
+        try:
+            # 1. 제한 체크
+            self._check_rate_limit()
+            
+            # 2. 토큰 소모 및 API 호출
+            async with self.limiter:
+                return await get_json(url, headers=self.headers)
+                
+        except RateLimitError as r:
+            # 3. 제한에 걸리면 여기서 알아서 디스코드 메시지를 보내줍니다.
+            await interaction.followup.send(
+                f"🛑 [제한 도달] MapleStory API 요청 제한에 도달했습니다.\n 잠시 후에 다시 시도해 주세요."
+            )
+            # 제한에 걸렸음을 호출한 쪽에 알리기 위해 특별한 값(None이나 False) 리반환
+            return "RATE_LIMITED"
+
 #########################################################################################################
 
     @app_commands.command(name="메이플_등록", description="해당 닉네임을 등록합니다.") # 메이플_등록 260701
@@ -67,7 +107,7 @@ class MapleCog(commands.Cog):
 
         data_url = f'https://open.api.nexon.com/maplestory/v1/id?character_name={닉네임}'
         
-        api_data:dict = await get_json(url=data_url, headers=self.headers)
+        api_data:dict = await self.request_api(interaction, url=data_url)
         
         if not api_data.get('ocid'): # 없는 이름
             await interaction.followup.send('없는 닉네임')
@@ -100,14 +140,53 @@ class MapleCog(commands.Cog):
         
         ref.delete() # 삭제
 
+        await interaction.response.send_message('삭제 완료!', ephemeral=True)
         developer_id = 442284517223301120
         developer = self.bot.get_user(developer_id) or await self.bot.fetch_user(developer_id)
         await developer.send(f"{interaction.user}님이 {interaction.guild.name}에 {닉네임} 닉네임을 삭제했습니다.")
-        await interaction.response.send('삭제 완료!', ephemeral=True)
 
 #########################################################################################################
 
-    @app_commands.command(name="메이플_랭킹", description="등록된 닉네임들의 랭킹을 조회합니다.") # 메이플_랭킹 260701
+    async def _fetch_single_maple_character(self, interaction: discord.Interaction, server_id: str, nickname: str, ocid: str):
+        """단일 캐릭터의 정보와 스탯을 병렬로 가져오고, 닉네임 변경 및 삭제를 처리하는 헬퍼 메서드"""
+        stat_url = f'https://open.api.nexon.com/maplestory/v1/character/stat?ocid={ocid}'
+        info_url = f'https://open.api.nexon.com/maplestory/v1/character/basic?ocid={ocid}'
+
+        # stat과 info API 요청도 동시에(병렬로) 처리하여 속도 최적화
+        stat_api, info_api = await asyncio.gather(
+            self.request_api(interaction, url=stat_url),
+            self.request_api(interaction, url=info_url)
+        )
+
+        if stat_api == "RATE_LIMITED" or info_api == "RATE_LIMITED":
+            return "RATE_LIMITED"
+
+        # 캐릭터가 삭제된 경우
+        if stat_api and stat_api.get("error"):
+            log_info(f"닉네임 {nickname} 삭제됨 (OCID: {ocid}) - 캐릭터 정보 없음", "MapleRanking")
+            db.reference(f'maple_character/{server_id}/{nickname}').delete()
+            return None
+
+        # 데이터가 비정상인 경우 스킵
+        if not info_api or not stat_api.get('final_stat'):
+            return None
+
+        # 닉네임 변경 감지
+        current_name = info_api.get("character_name")
+        if current_name and current_name != nickname:
+            log_info(f"닉네임 {nickname} -> {current_name} (OCID: {ocid}) - 닉네임 변경 감지", "MapleRanking")
+            db.reference(f'maple_character/{server_id}/{nickname}').delete()
+            db.reference(f'maple_character/{server_id}/{current_name}').set(ocid)
+
+        # 전투력 추출 (안정성을 위해 이름으로 검색하도록 보완할 수도 있지만, 기존 로직 유지)
+        power = int(stat_api['final_stat'][-2]['stat_value'])
+
+        return {
+            "power": power,
+            "info": info_api
+        }
+
+    @app_commands.command(name="메이플_랭킹", description="등록된 닉네임들의 랭킹을 조회합니다.") # 메이플_랭킹 260701 / 260711
     async def maple_ranking(self, interaction: discord.Interaction):
         server_id = str(interaction.guild.id)
         server_characters = db.reference(f'maple_character/{server_id}').get() or {}
@@ -117,35 +196,27 @@ class MapleCog(commands.Cog):
             return
 
         await interaction.response.defer()
-        stat_url = 'https://open.api.nexon.com/maplestory/v1/character/stat?ocid='
-        info_url = 'https://open.api.nexon.com/maplestory/v1/character/basic?ocid='
+
+        tasks = [
+            self._fetch_single_maple_character(interaction, server_id, nickname, ocid)
+            for nickname, ocid in server_characters.items()
+        ]
+
+        # 2. asyncio.gather로 한 번에 실행 (병렬 처리)
+        results = await asyncio.gather(*tasks)
 
         data=[]
-        for nickname, ocid in server_characters.items():
-            stat_api = await get_json(url=(stat_url+ocid), headers=self.headers)
-            if stat_api.get("error"): # 없어진 캐릭터면 삭제하고 continue
-                log_info(f"닉네임 {nickname} 삭제됨 (OCID: {ocid}) - 캐릭터 정보 없음", "MapleRanking")
-                db.reference(f'maple_character/{server_id}/{nickname}').delete()
-                await asyncio.sleep(0.1)
-                continue
+        for res in results:
+            if res == "RATE_LIMITED":
+                # Rate limit이 걸린 경우, 기존 코드처럼 아예 종료하거나 안내 메시지를 보낼 수 있습니다.
+                # await interaction.followup.send("API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.")
+                return 
+            if res is not None:
+                data.append(res)
 
-            info_api = await get_json(url=(info_url+ocid), headers=self.headers)
-
-            if info_api["character_name"] != nickname: # 닉변한 경우
-                log_info(f"닉네임 {nickname} -> {info_api['character_name']} (OCID: {ocid}) - 닉네임 변경 감지", "MapleRanking")
-                db.reference(f'maple_character/{server_id}/{nickname}').delete()
-                db.reference(f'maple_character/{server_id}/{info_api["character_name"]}').set(ocid)
-
-            if not info_api or not stat_api['final_stat']:
-                continue
-
-            power = int(stat_api['final_stat'][-2]['stat_value'])
-
-            data.append({
-                "power": power, # 전투력
-                "info": info_api, # world_name, character_class, character_level, character_guild_name, character_image
-            })
-            await asyncio.sleep(0.3)
+        if not data:
+            await interaction.followup.send("조회할 수 있는 캐릭터 정보가 없습니다.")
+            return
 
         # 1. 딕셔너리의 Key(랭킹 번호)를 기준으로 오름차순(1등부터) 정렬
         data.sort(key=lambda x: x["power"], reverse=True)
@@ -223,8 +294,8 @@ class MapleCog(commands.Cog):
         if (ocid:= db.reference(f'maple_character/{server_id}/{닉네임}').get()) is None:
             data_url = f'https://open.api.nexon.com/maplestory/v1/id?character_name={닉네임}'
             
-            api_data:dict = await get_json(url=data_url, headers=self.headers)
-            
+            api_data:dict = await self.request_api(interaction, url=data_url)
+
             if api_data.get('ocid') is None: # 없는 이름
                 await interaction.followup.send('없는 닉네임')
                 return
@@ -232,7 +303,7 @@ class MapleCog(commands.Cog):
             ocid = api_data['ocid']
 
         api_url = f'https://open.api.nexon.com/maplestory/v1/character/basic?ocid={ocid}'
-        api_data:dict = await get_json(url=api_url, headers=self.headers)
+        api_data:dict = await self.request_api(interaction, url=api_url)
 
         # 데이터 추출
         name = api_data.get("character_name", "알 수 없음")
