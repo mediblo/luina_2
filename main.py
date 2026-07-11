@@ -71,7 +71,7 @@ class Luina(commands.Bot):
             if developer:
                 await developer.send(f"{interaction.user} / /{command} / {error}")
 
-            log_warning(command, user = interaction.user.display_name)
+            log_warning(f"[{command}] {interaction.message} {error}", user = interaction.user.display_name)
             
             # 사용자에게 에러 알림 (이미 응답했는지 여부에 따라 처리)
             if interaction.response.is_done():
