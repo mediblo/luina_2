@@ -90,6 +90,8 @@ async def startup():
     봇 시작 시 실행
     """
     from services.firebase import delete_old_logs
+    from utils.logger import log_info
+    log_info("[Logger] 시작 시 1달 된 로그 삭제 시작", "Logger")
     await delete_old_logs()
 
 
@@ -97,4 +99,6 @@ async def shutdown():
     """
     종료 직전 실행
     """
+    from utils.logger import log_info
+    log_info("[Logger] 종료 직전 로그 플러시 시작", "Logger")
     await flush()
