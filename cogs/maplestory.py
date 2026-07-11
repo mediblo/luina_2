@@ -56,11 +56,9 @@ class MapleCog(commands.Cog):
     @app_commands.command(name="메이플_등록", description="해당 닉네임을 등록합니다.") # 메이플_등록 260701
     @app_commands.describe(닉네임="닉네임 (필수)")
     async def maple_add(self, interaction: discord.Interaction, 닉네임:str):
-        if interaction.guild.id not in [1307325561890406452, 736512667530821653]:
-            await interaction.response.send_message('개발중인 명령어 입니다.', ephemeral=True)
-            return
+        server_id = str(interaction.guild.id)
         
-        ref = db.reference(f'maple_character/{닉네임}') # 이미 있음
+        ref = db.reference(f'maple_character/{server_id}/{닉네임}') # 이미 있음
         if ref.get() is not None:
             await interaction.response.send_message('이미 등록된 닉네임입니다.', ephemeral=True)
             return
@@ -76,8 +74,10 @@ class MapleCog(commands.Cog):
             return
         
         ocid = api_data['ocid']
-        if user:= db.reference('maple_character').order_by_value().equal_to(ocid).get(): # 닉변한 경우 [ 기존 데이터 삭제 ]
-            db.reference(f'maple_character/{list(user.keys())[0]}').delete()
+        if db.reference(f'maple_character/{server_id}').get() is None:  # 서버 없으면
+            db.reference(f'maple_character/{server_id}').set({}) # 서버 생성
+        elif user:= db.reference(f'maple_character/{server_id}').order_by_value().equal_to(ocid).get(): # 닉변한 경우 [ 기존 데이터 삭제 ]
+            db.reference(f'maple_character/{server_id}/{list(user.keys())[0]}').delete()
 
         ref.set(ocid) # 추가
 
@@ -88,13 +88,30 @@ class MapleCog(commands.Cog):
 
 #########################################################################################################
 
-    @app_commands.command(name="메이플_랭킹", description="등록된 닉네임들의 랭킹을 조회합니다.") # 메이플_랭킹 260701
-    async def maple_ranking(self, interaction: discord.Interaction):
-        if interaction.guild.id not in [1307325561890406452, 736512667530821653]:
-            await interaction.response.send_message('개발중인 명령어 입니다.', ephemeral=True)
+    @app_commands.command(name="메이플_삭제", description="해당 닉네임을 삭제합니다.") # 메이플_삭제 260711
+    @app_commands.describe(닉네임="닉네임 (필수)")
+    async def maple_del(self, interaction: discord.Interaction, 닉네임:str):
+        server_id = str(interaction.guild.id)
+        
+        ref = db.reference(f'maple_character/{server_id}/{닉네임}') # 이미 있음
+        if ref.get() is None:
+            await interaction.response.send_message('등록되지 않은 닉네임입니다.', ephemeral=True)
             return
         
-        server_characters = db.reference('maple_character').get() or {}
+        ref.delete() # 삭제
+
+        developer_id = 442284517223301120
+        developer = self.bot.get_user(developer_id) or await self.bot.fetch_user(developer_id)
+        await developer.send(f"{interaction.user} 님이 {닉네임} 닉네임을 삭제했습니다.")
+        await interaction.response.send('삭제 완료!', ephemeral=True)
+
+#########################################################################################################
+
+    @app_commands.command(name="메이플_랭킹", description="등록된 닉네임들의 랭킹을 조회합니다.") # 메이플_랭킹 260701
+    async def maple_ranking(self, interaction: discord.Interaction):
+        server_id = str(interaction.guild.id)
+        server_characters = db.reference(f'maple_character/{server_id}').get() or {}
+
         if not server_characters:
             await interaction.response.send_message('등록된 캐릭터가 없습니다.', ephemeral=True)
             return
@@ -108,7 +125,7 @@ class MapleCog(commands.Cog):
             stat_api = await get_json(url=(stat_url+ocid), headers=self.headers)
             if stat_api.get("error"): # 없어진 캐릭터면 삭제하고 continue
                 log_info(f"닉네임 {nickname} 삭제됨 (OCID: {ocid}) - 캐릭터 정보 없음", "MapleRanking")
-                db.reference('maple_character').child(nickname).delete()
+                db.reference(f'maple_character/{server_id}/{nickname}').delete()
                 await asyncio.sleep(0.1)
                 continue
 
@@ -116,8 +133,8 @@ class MapleCog(commands.Cog):
 
             if info_api["character_name"] != nickname: # 닉변한 경우
                 log_info(f"닉네임 {nickname} -> {info_api['character_name']} (OCID: {ocid}) - 닉네임 변경 감지", "MapleRanking")
-                db.reference('maple_character').child(nickname).delete()
-                db.reference('maple_character').child(info_api["character_name"]).set(ocid)
+                db.reference(f'maple_character/{server_id}/{nickname}').delete()
+                db.reference(f'maple_character/{server_id}/{info_api["character_name"]}').set(ocid)
 
             if not info_api or not stat_api['final_stat']:
                 continue
@@ -136,7 +153,7 @@ class MapleCog(commands.Cog):
         # 2. 디스코드 임베드 생성
         embed = build_simple_embed(
             title="🍁 메이플스토리 캐릭터 전투력 랭킹",
-            description=f"등록된 캐릭터들간의 랭킹 정보입니다."
+            description=f"{interaction.guild.name}서버에 등록된\n캐릭터들간의 랭킹 정보입니다."
         )
 
         embed.set_thumbnail(url=data[0]['info']['character_image'])  # 가장 높은 전투력 캐릭터의 이미지로 썸네일 설정
@@ -199,10 +216,11 @@ class MapleCog(commands.Cog):
     ])
     async def maple_character(self, interaction: discord.Interaction, 닉네임:str, 공개여부: int = 1):
         공개여부 = 공개여부 == 0  # 공개 여부를 boolean으로 변환
-
         await interaction.response.defer(ephemeral=공개여부)
 
-        if (ocid:= db.reference(f'maple_character/{닉네임}').get()) is None:
+        server_id = str(interaction.guild.id)
+
+        if (ocid:= db.reference(f'maple_character/{server_id}/{닉네임}').get()) is None:
             data_url = f'https://open.api.nexon.com/maplestory/v1/id?character_name={닉네임}'
             
             api_data:dict = await get_json(url=data_url, headers=self.headers)
