@@ -22,7 +22,8 @@ class General(commands.Cog):
             title="정보",
             description="ℹ️ Luina V2.0"
         )
-        #embed.set_thumbnail()
+        embed.set_thumbnail(url=self.bot.user.avatar.url)
+        embed.url="https://www.notion.so/Luina-39580ffbfd3580bbb2a3e85c97027b40?source=copy_link"
 
         embed.add_field(name= "개발자", value= "mediblo", inline=False)
         embed.add_field(name= "탄생일", value= "2020년 7월 26일")

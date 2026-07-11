@@ -18,6 +18,9 @@ Discord.py 기반 멀티 게임/유틸 디스코드 봇입니다.
 - discord.py[voice] 2.7.1
 - httpx 0.28.1
 - lyricsgenius 3.12.2
+- aiolimiter 1.2.1
+- firebase-admin 7.1.0
+- python-dotenv 1.0.1
 
 ## 디렉터리 구조
 
@@ -27,6 +30,11 @@ Discord.py 기반 멀티 게임/유틸 디스코드 봇입니다.
 ├─ requirements.txt
 ├─ Procfile
 ├─ .python-version
+├─ TODO.txt
+├─ notice.txt
+├─ character_sheet.md        # 🎭 루이나 캐릭터 설정 시트
+├─ how_to_use.md             # 📚 사용자 명령어 설명서
+├─ how_to_use2.md            # 🌙 루이나 컨셉 반영 사용 설명서
 │
 ├─ config/
 │  └─ settings.py
@@ -44,19 +52,17 @@ Discord.py 기반 멀티 게임/유틸 디스코드 봇입니다.
 │  ├─ http_client.py
 │  └─ logger.py              # 봇 내부 로그 기록
 │
-├─ web/
-│  ├─ __init__.py
-│  └─ log_drain.py           # aiohttp 서버 및 Log Drain 엔드포인트
-│
 ├─ services/
 │  ├─ __init__.py
-│  ├─ firebase.py            # Firebase 공통 함수
+│  ├─ firebase.py            # Firebase 공통 함수 (로그 및 메이플 데이터 처리)
 │  └─ log_service.py         # 로그 저장/삭제/Flush
 │
 ├─ data/
-│  └─ kkuko_db.txt
+│  └─ kkuko_db.txt           # 끄투 코리아 단어 DB
 │
-└─ history.txt
+├─ Luina/                    # 🖼️ 봇 프로필 이미지 및 캐릭터 시트 이미지 리소스
+│
+└─ history.txt               # 봇 개발 이력
 ```
 
 ## 실행 준비
@@ -80,6 +86,8 @@ pip install -r requirements.txt
 - `MAPLESTORY_API`
 - `ON_WORD_API`
 - `RIOT_API`
+- `FIREBASE_CREDENTIALS`
+- `FIREBASE_URL`
 
 예시 (PowerShell):
 
@@ -92,6 +100,8 @@ $env:LOSTARK_API="..."
 $env:MAPLESTORY_API="..."
 $env:ON_WORD_API="..."
 $env:RIOT_API="..."
+$env:FIREBASE_CREDENTIALS="..."
+$env:FIREBASE_URL="..."
 ```
 
 ## 실행
@@ -130,7 +140,6 @@ worker: python main.py
 - `/b64`
 - `/청소`
 - `/초대`
-- `/서버리스트` (개발자/특정 서버 제한)
 
 ### API (`cogs/api.py`)
 
@@ -163,6 +172,7 @@ worker: python main.py
 ### MapleStory (`cogs/maplestory.py`)
 
 - `/메이플_등록`
+- `/메이플_삭제`
 - `/메이플_랭킹`
 - `/메이플_캐릭터`
 - `/메이플_공지`
@@ -170,7 +180,6 @@ worker: python main.py
 
 주의:
 
-- `/메이플_등록`, `/메이플_랭킹`은 코드상 특정 길드에서만 동작하도록 제한되어 있습니다.
 - 등록 데이터는 `Firebase`에 저장됩니다.
 
 ### 도움말 (`cogs/help.py`)
@@ -184,11 +193,6 @@ worker: python main.py
 	- 대용량 단어 사전 파일 (약 332,534 라인)
 	- 텍스트 기반 사전 데이터
 	- 끄투 코리아 DB
-
-## 유틸리티
-
-- `utils/embed_builder.py`: 공통 Embed 생성 헬퍼
-- `utils/http_client.py`: `httpx.AsyncClient` 기반 비동기 GET/POST 유틸
 
 ## 운영 메모
 
